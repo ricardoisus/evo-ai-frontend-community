@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { EditorView } from 'prosemirror-view';
-import { toggleMark } from 'prosemirror-commands';
+import { toggleMark, wrapIn } from 'prosemirror-commands';
 import { wrapInList } from 'prosemirror-schema-list';
-import { Bold, Italic, Code, List } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, ListOrdered, List, Quote } from 'lucide-react';
 
 import { messageSchema } from './schema';
 import { cn } from '@/lib/utils';
@@ -19,7 +19,7 @@ interface FormattingBubbleMenuProps {
   onClose: () => void;
 }
 
-const ITEM_BOX = 'h-9 w-9 flex items-center justify-center rounded-md flex-shrink-0';
+const ITEM_BOX = 'h-9 w-9 flex items-center justify-center rounded-md flex-shrink-0 transition-colors';
 
 /**
  * Ancorado no topo-centro da seleção via `translate(-50%, calc(-100% - 8px))`
@@ -74,6 +74,13 @@ const FormattingBubbleMenu: React.FC<FormattingBubbleMenuProps> = ({ view, rect,
       onClick: () => runMarkCommand(toggleMark(messageSchema.marks.em)),
     },
     {
+      key: 'strike',
+      label: 'Tachado',
+      icon: <Strikethrough className="h-4 w-4" />,
+      active: isMarkActive(messageSchema.marks.strike),
+      onClick: () => runMarkCommand(toggleMark(messageSchema.marks.strike)),
+    },
+    {
       key: 'code',
       label: 'Código',
       icon: <Code className="h-4 w-4" />,
@@ -81,11 +88,25 @@ const FormattingBubbleMenu: React.FC<FormattingBubbleMenuProps> = ({ view, rect,
       onClick: () => runMarkCommand(toggleMark(messageSchema.marks.code)),
     },
     {
+      key: 'orderedList',
+      label: 'Lista numerada',
+      icon: <ListOrdered className="h-4 w-4" />,
+      active: false,
+      onClick: () => runMarkCommand(wrapInList(messageSchema.nodes.ordered_list)),
+    },
+    {
       key: 'bulletList',
       label: 'Lista',
       icon: <List className="h-4 w-4" />,
       active: false,
       onClick: () => runMarkCommand(wrapInList(messageSchema.nodes.bullet_list)),
+    },
+    {
+      key: 'quote',
+      label: 'Citação',
+      icon: <Quote className="h-4 w-4" />,
+      active: false,
+      onClick: () => runMarkCommand(wrapIn(messageSchema.nodes.blockquote)),
     },
   ];
 
@@ -100,22 +121,30 @@ const FormattingBubbleMenu: React.FC<FormattingBubbleMenuProps> = ({ view, rect,
         display: 'flex',
         alignItems: 'center',
         gap: 2,
-        background: '#FFFFFF',
-        border: '1px solid #eceef2',
         borderRadius: 12,
-        boxShadow: '0 12px 32px rgba(20,30,45,.16)',
         padding: 5,
         zIndex: 100,
       }}
+      role="toolbar"
+      aria-label="Formatação do texto selecionado"
+      className="border border-border bg-popover text-popover-foreground shadow-[0_16px_40px_rgba(0,0,0,.3)]"
     >
       {items.map(item => (
         <button
           key={item.key}
           type="button"
           title={item.label}
+          aria-label={item.label}
+          aria-pressed={item.active}
           onMouseDown={e => e.preventDefault()}
           onClick={item.onClick}
-          className={cn(ITEM_BOX, 'border-0 cursor-pointer', item.active ? 'bg-primary/10 text-primary' : 'bg-transparent text-muted-foreground')}
+          className={cn(
+            ITEM_BOX,
+            'cursor-pointer border-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            item.active
+              ? 'bg-primary/15 text-primary'
+              : 'bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+          )}
         >
           {item.icon}
         </button>

@@ -94,6 +94,46 @@
 }
 
 :root {
+  /* Agência Vetorial — premium editorial palette. These override the
+     Evolution design-system defaults imported before this file. */
+  --brand-sienna: #B45417;
+  --brand-sienna-dark: #8C4011;
+  --brand-ivory: #F2EFE8;
+  --brand-charcoal: #0E0E0E;
+  --brand-dark-teal: #1A4F4F;
+  --brand-steel-blue: #55768A;
+
+  --background: #F2EFE8;
+  --foreground: #0E0E0E;
+  --card: #FCFAF5;
+  --card-foreground: #0E0E0E;
+  --popover: #FCFAF5;
+  --popover-foreground: #0E0E0E;
+  --primary: #B45417;
+  --primary-foreground: #FFF9F0;
+  --secondary: #D8E0E3;
+  --secondary-foreground: #203945;
+  --muted: #E4E0D8;
+  --muted-foreground: #625D55;
+  --accent: #D6E0E5;
+  --accent-foreground: #203945;
+  --border: #D0C9BF;
+  --input: #C8C1B7;
+  --ring: #B45417;
+  --chart-1: #B45417;
+  --chart-2: #55768A;
+  --chart-3: #1A4F4F;
+  --chart-4: #C58B55;
+  --chart-5: #7893A2;
+  --sidebar: #171717;
+  --sidebar-foreground: #F2EFE8;
+  --sidebar-primary: #B45417;
+  --sidebar-primary-foreground: #FFF9F0;
+  --sidebar-accent: #1A4F4F;
+  --sidebar-accent-foreground: #F2EFE8;
+  --sidebar-border: #2E2E2E;
+  --sidebar-ring: #C66B2C;
+
   /* Flow Builder design tokens — LIGHT mode values (EVO-1253). */
   --flow-node-trigger-bg: oklch(0.95 0.05 150);
   --flow-node-trigger-fg: oklch(0.30 0.12 150);
@@ -146,6 +186,37 @@
 }
 
 .dark {
+  --background: #0E0E0E;
+  --foreground: #F2EFE8;
+  --card: #171717;
+  --card-foreground: #F2EFE8;
+  --popover: #1B1B1B;
+  --popover-foreground: #F2EFE8;
+  --primary: #B45417;
+  --primary-foreground: #FFF9F0;
+  --secondary: #1A4F4F;
+  --secondary-foreground: #F2EFE8;
+  --muted: #242321;
+  --muted-foreground: #B8B1A7;
+  --accent: #203945;
+  --accent-foreground: #F2EFE8;
+  --border: #36322E;
+  --input: #3B3631;
+  --ring: #C66B2C;
+  --chart-1: #C66B2C;
+  --chart-2: #6F91A3;
+  --chart-3: #397979;
+  --chart-4: #D5A06B;
+  --chart-5: #8EA6B3;
+  --sidebar: #141414;
+  --sidebar-foreground: #F2EFE8;
+  --sidebar-primary: #B45417;
+  --sidebar-primary-foreground: #FFF9F0;
+  --sidebar-accent: #1A4F4F;
+  --sidebar-accent-foreground: #F2EFE8;
+  --sidebar-border: #302D2A;
+  --sidebar-ring: #C66B2C;
+
   /* Flow Builder design tokens — DARK mode overrides (EVO-1253). */
   --flow-node-trigger-bg: oklch(0.22 0.05 150);
   --flow-node-trigger-fg: oklch(0.90 0.10 150);

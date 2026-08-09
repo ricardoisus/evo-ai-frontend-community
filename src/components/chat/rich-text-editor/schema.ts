@@ -1,7 +1,7 @@
 import { Schema } from 'prosemirror-model';
 
 /**
- * Schema para notas privadas - bold, italic, code e listas
+ * Schema de mensagens com o conjunto de formatação familiar do WhatsApp.
  */
 export const messageSchema = new Schema({
   nodes: {
@@ -36,6 +36,29 @@ export const messageSchema = new Schema({
         return ['ul', 0];
       },
     },
+    ordered_list: {
+      content: 'list_item+',
+      group: 'block',
+      attrs: { order: { default: 1 } },
+      parseDOM: [
+        {
+          tag: 'ol',
+          getAttrs: dom => ({ order: (dom as HTMLOListElement).start || 1 }),
+        },
+      ],
+      toDOM(node) {
+        return node.attrs.order === 1 ? ['ol', 0] : ['ol', { start: node.attrs.order }, 0];
+      },
+    },
+    blockquote: {
+      content: 'block+',
+      group: 'block',
+      defining: true,
+      parseDOM: [{ tag: 'blockquote' }],
+      toDOM() {
+        return ['blockquote', 0];
+      },
+    },
     list_item: {
       content: 'paragraph block*',
       parseDOM: [{ tag: 'li' }],
@@ -62,6 +85,12 @@ export const messageSchema = new Schema({
       parseDOM: [{ tag: 'code' }],
       toDOM() {
         return ['code', { spellcheck: 'false' }, 0];
+      },
+    },
+    strike: {
+      parseDOM: [{ tag: 's' }, { tag: 'del' }, { tag: 'strike' }],
+      toDOM() {
+        return ['s', 0];
       },
     },
   },
