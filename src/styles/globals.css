@@ -125,14 +125,14 @@
   --chart-3: #1A4F4F;
   --chart-4: #C58B55;
   --chart-5: #7893A2;
-  --sidebar: #171717;
-  --sidebar-foreground: #F2EFE8;
+  --sidebar: #FCFAF5;
+  --sidebar-foreground: #0E0E0E;
   --sidebar-primary: #B45417;
   --sidebar-primary-foreground: #FFF9F0;
-  --sidebar-accent: #1A4F4F;
-  --sidebar-accent-foreground: #F2EFE8;
-  --sidebar-border: #2E2E2E;
-  --sidebar-ring: #C66B2C;
+  --sidebar-accent: #E4E0D8;
+  --sidebar-accent-foreground: #203945;
+  --sidebar-border: #D0C9BF;
+  --sidebar-ring: #B45417;
 
   /* Flow Builder design tokens — LIGHT mode values (EVO-1253). */
   --flow-node-trigger-bg: oklch(0.95 0.05 150);
