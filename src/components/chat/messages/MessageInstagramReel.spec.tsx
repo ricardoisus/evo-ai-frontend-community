@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { Attachment } from '@/types/chat/api';
@@ -45,5 +45,19 @@ describe('MessageInstagramReel', () => {
     );
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('prefers the cached thumbnail and replaces a failed image with the fallback artwork', () => {
+    render(
+      <MessageInstagramReel
+        attachments={[{ ...reelAttachment, thumb_url: 'https://evo-api.example/cached-reel.jpg' }]}
+      />,
+    );
+
+    const image = screen.getByRole('img', { name: 'Prévia do Instagram Reel' });
+    expect(image).toHaveAttribute('src', 'https://evo-api.example/cached-reel.jpg');
+
+    fireEvent.error(image);
+    expect(screen.queryByRole('img', { name: 'Prévia do Instagram Reel' })).not.toBeInTheDocument();
   });
 });
