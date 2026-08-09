@@ -206,7 +206,7 @@ const MessageText: React.FC<MessageTextProps> = ({
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-blue-500 underline break-all hover:text-blue-400"
+            className="break-all text-current underline decoration-current/60 underline-offset-2 transition-opacity hover:opacity-80"
           >
             {url}
           </a>

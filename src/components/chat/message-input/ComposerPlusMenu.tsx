@@ -27,8 +27,8 @@ const ITEM_ICON_BOX =
 
 /**
  * Menu "+" do composer — popover custom (não Dropdown genérico), estilo/cores
- * exatos do protótipo de referência (Melhorias CRM Chat §3.8): abre pra cima,
- * cada item com ícone em quadrado verde-claro 34x34. Ordem fixa: Mensagens
+ * do protótipo de referência (Melhorias CRM Chat §3.8): abre pra cima,
+ * cada item com ícone em um tile de acento. Ordem fixa: Mensagens
  * Rápidas, Documentos, Fotos e Vídeos, Notas da Conversa, Agendar.
  */
 const ComposerPlusMenu: React.FC<ComposerPlusMenuProps> = ({
@@ -111,7 +111,9 @@ const ComposerPlusMenu: React.FC<ComposerPlusMenuProps> = ({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(prev => !prev)}
-        title={t('messageInput.composerMenu.tooltip')}
+        aria-label={t('messageInput.composerMenu.tooltip')}
+        aria-expanded={open}
+        aria-haspopup="menu"
         className="h-9 w-9 flex items-center justify-center rounded-md hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="text-primary">
@@ -122,40 +124,24 @@ const ComposerPlusMenu: React.FC<ComposerPlusMenuProps> = ({
 
       {open && (
         <div
-          style={{
-            position: 'absolute',
-            bottom: 44,
-            left: -6,
-            width: 248,
-            background: '#FFFFFF',
-            border: '1px solid #eceef2',
-            borderRadius: 14,
-            boxShadow: '0 12px 32px rgba(20,30,45,.16)',
-            padding: 7,
-            zIndex: 100,
-          }}
+          role="menu"
+          aria-label={t('messageInput.composerMenu.tooltip')}
+          className="absolute bottom-11 -left-1.5 z-[100] w-[248px] rounded-[14px] border border-border bg-popover p-[7px] text-popover-foreground shadow-[0_16px_40px_rgba(0,0,0,.28)]"
         >
           {items.map(item => (
-            <div
+            <button
+              type="button"
+              role="menuitem"
               key={item.key}
               onClick={() => {
                 setOpen(false);
                 item.onClick();
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: '9px 10px',
-                borderRadius: 10,
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f4f6f9')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] px-2.5 py-[9px] text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className={ITEM_ICON_BOX}>{item.icon}</span>
-              <span style={{ fontSize: 14.5, color: '#2b3240', fontWeight: 500 }}>{item.label}</span>
-            </div>
+              <span className="text-[14.5px] font-medium text-popover-foreground">{item.label}</span>
+            </button>
           ))}
         </div>
       )}

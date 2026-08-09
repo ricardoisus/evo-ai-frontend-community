@@ -762,13 +762,13 @@ const MessageInput: React.FC<MessageInputProps> = ({
                   size="icon"
                   disabled={isDisabled || isSending}
                   className={`h-9 w-9 flex-shrink-0 hover:bg-accent disabled:opacity-50 transition-colors ${
-                    isSignatureEnabled ? 'text-green-600 dark:text-green-400' : ''
+                    isSignatureEnabled ? 'bg-primary/10 text-primary' : ''
                   }`}
                   onClick={toggleSignature}
                 >
                   <PenLine className="h-4 w-4" />
                 </Button>
-                <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                <div className="absolute bottom-full right-0 z-50 mb-2 whitespace-nowrap rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity pointer-events-none group-hover:opacity-100">
                   {isSignatureEnabled
                     ? t('messageInput.signature.disable')
                     : t('messageInput.signature.enable')}

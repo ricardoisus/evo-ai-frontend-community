@@ -176,7 +176,7 @@ export { Agent };
 export interface Attachment {
   id: string;
   message_id: string;
-  file_type: 'image' | 'video' | 'audio' | 'file' | 'location';
+  file_type: 'image' | 'video' | 'audio' | 'file' | 'location' | 'ig_reel';
   extension: string | null;
   data_url: string;
   thumb_url: string | null;

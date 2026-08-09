@@ -27,6 +27,7 @@ import MessageAudio from '@/components/chat/messages/MessageAudio';
 import MessageVideo from '@/components/chat/messages/MessageVideo';
 import MessageInputSelect from '@/components/chat/messages/MessageInputSelect';
 import MessageLocation from '@/components/chat/messages/MessageLocation';
+import MessageInstagramReel from '@/components/chat/messages/MessageInstagramReel';
 import MessageCarousel from '@/components/chat/messages/MessageCarousel';
 import MessageStatus from '@/components/chat/messages/MessageStatus';
 import SystemMessage from '@/components/chat/messages/SystemMessage';
@@ -207,6 +208,20 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               />
             )}
             <MessageLocation attachments={message.attachments} />
+          </>
+        );
+      } else if (fileType === 'ig_reel') {
+        return (
+          <>
+            {message.content && (
+              <MessageText
+                content={message.content}
+                isPrivateNote={isPrivate}
+                contentType={message.content_type}
+                contentAttributes={message.content_attributes}
+              />
+            )}
+            <MessageInstagramReel attachments={message.attachments} />
           </>
         );
       } else if (fileType === 'image' || fileType.includes('image/')) {

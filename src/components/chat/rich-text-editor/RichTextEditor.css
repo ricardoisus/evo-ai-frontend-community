@@ -60,6 +60,12 @@
   font-family: monospace;
 }
 
+.prosemirror-editor s,
+.rich-content s,
+.rich-content del {
+  text-decoration: line-through;
+}
+
 /* Parágrafos */
 .prosemirror-editor p {
   margin: 0.5rem 0;
@@ -78,6 +84,22 @@
   list-style-type: disc;
   list-style-position: inside;
   margin: 0.5rem 0;
+}
+
+.prosemirror-editor ol,
+.rich-content ol {
+  list-style-type: decimal;
+  list-style-position: inside;
+  margin: 0.5rem 0;
+}
+
+.prosemirror-editor blockquote,
+.rich-content blockquote {
+  margin: 0.5rem 0;
+  border-left: 3px solid var(--primary);
+  padding-left: 0.75rem;
+  color: inherit;
+  opacity: 0.9;
 }
 
 .prosemirror-editor li {

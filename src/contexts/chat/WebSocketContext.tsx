@@ -19,22 +19,25 @@ import { normalizeToUnixSeconds } from '@/utils/time/timeHelpers';
 /**
  * Converte file_type do formato WebSocket (número ou string) para o formato esperado pelo frontend
  */
-function mapFileType(fileType: number | string): 'image' | 'video' | 'audio' | 'file' | 'location' {
+type AttachmentFileType = Attachment['file_type'];
+
+function mapFileType(fileType: number | string): AttachmentFileType {
   // Se já for string, retornar diretamente (com validação)
   if (typeof fileType === 'string') {
-    const validTypes = ['image', 'video', 'audio', 'file', 'location'];
-    if (validTypes.includes(fileType)) {
-      return fileType as 'image' | 'video' | 'audio' | 'file' | 'location';
+    const validTypes: AttachmentFileType[] = ['image', 'video', 'audio', 'file', 'location', 'ig_reel'];
+    if (validTypes.includes(fileType as AttachmentFileType)) {
+      return fileType as AttachmentFileType;
     }
   }
 
   // Mapear número para string (baseado no enum do backend: 0=image, 1=audio, 2=video, 3=file, 4=location)
-  const fileTypeMap: Record<number, 'image' | 'video' | 'audio' | 'file' | 'location'> = {
+  const fileTypeMap: Record<number, AttachmentFileType> = {
     0: 'image',
     1: 'audio',
     2: 'video',
     3: 'file',
     4: 'location',
+    9: 'ig_reel',
   };
 
   return fileTypeMap[Number(fileType)] || 'file';
