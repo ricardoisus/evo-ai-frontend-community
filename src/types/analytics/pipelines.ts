@@ -2,10 +2,7 @@ import type { PaginatedResponse, StandardResponse, PaginationMeta } from '@/type
 import type { Contact } from '@/types/contacts';
 
 export type StageAutomationTrigger =
-  | 'label_added'
-  | 'conversation_status_changed'
-  | 'custom_attribute_updated'
-  | 'inactivity';
+  'label_added' | 'conversation_status_changed' | 'custom_attribute_updated' | 'inactivity';
 export type StageAutomationAction =
   | 'move_to_stage'
   | 'move_to_pipeline'
@@ -230,6 +227,7 @@ export interface PipelineItem {
   notes?: string;
   value?: number;
   currency?: string;
+  labels?: DealLabel[];
   created_at: string | number;
   updated_at: string | number;
   contact?: {
@@ -265,7 +263,7 @@ export interface PipelineItem {
     name: string;
     email?: string;
     avatar_url?: string;
-  };
+  } | null;
   contact_count?: number;
   conversation_count?: number;
   file_count?: number;
@@ -381,6 +379,13 @@ export interface DealContact {
   custom_attributes?: Record<string, unknown>;
 }
 
+export interface DealLabel {
+  id?: string;
+  name: string;
+  title?: string;
+  color?: string;
+}
+
 export interface DealConversation {
   id: string;
   display_id: string | number;
@@ -428,8 +433,9 @@ export interface CreateDealData {
   currency?: string;
   notes?: string;
   pipeline_stage_id?: string;
-  owner_id?: string;
-  company_id?: string;
+  owner_id?: string | null;
+  company_id?: string | null;
+  labels?: string[];
   contact_ids?: string[];
   conversation_ids?: string[];
   custom_fields?: Record<string, unknown>;
@@ -460,7 +466,7 @@ export interface PipelineTask {
   metadata?: Record<string, unknown>;
   created_at: string | number;
   updated_at: string | number;
-  
+
   // Hierarchy fields
   parent_task_id?: string | null;
   position?: number;
@@ -469,13 +475,13 @@ export interface PipelineTask {
   has_subtasks?: boolean;
   subtask_count?: number;
   completion_percentage?: number;
-  
+
   // Computed fields
   overdue?: boolean;
   due_soon?: boolean;
   days_until_due?: number;
   hours_until_due?: number;
-  
+
   // Related objects
   created_by?: {
     id: string;

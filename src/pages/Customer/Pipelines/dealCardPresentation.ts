@@ -2,15 +2,19 @@ import type { PipelineItem } from '@/types/analytics';
 
 export function getDealCardPresentation(item: PipelineItem) {
   const contact = item.primary_contact || item.contact;
-  const labels = contact?.labels || item.conversation?.labels?.map(label => ({ name: label.title, color: label.color })) || [];
+  const labels = item.labels || [];
   const legacyMessage = item.conversation?.last_non_activity_message;
-  const message = item.latest_message || (legacyMessage ? {
-    id: legacyMessage.id,
-    content: legacyMessage.content,
-    message_type: String(legacyMessage.message_type),
-    created_at: String(legacyMessage.created_at),
-    conversation_id: item.conversation?.id || '',
-  } : null);
+  const message =
+    item.latest_message ||
+    (legacyMessage
+      ? {
+          id: legacyMessage.id,
+          content: legacyMessage.content,
+          message_type: String(legacyMessage.message_type),
+          created_at: String(legacyMessage.created_at),
+          conversation_id: item.conversation?.id || '',
+        }
+      : null);
 
   return {
     contact,
@@ -18,7 +22,8 @@ export function getDealCardPresentation(item: PipelineItem) {
     message,
     avatarUrl: contact?.avatar_url || contact?.thumbnail,
     title: item.title || `Negócio - ${contact?.name || 'Contato desconhecido'}`,
-    secondary: [item.company?.name, contact?.name].filter(Boolean).join(' · ') || 'Sem contato associado',
+    secondary:
+      [item.company?.name, contact?.name].filter(Boolean).join(' · ') || 'Sem contato associado',
     additionalContacts: Math.max((item.contact_count || 1) - 1, 0),
     value: item.value || 0,
     currency: item.currency || 'BRL',

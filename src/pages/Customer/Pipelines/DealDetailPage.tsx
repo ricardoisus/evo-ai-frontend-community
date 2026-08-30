@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
+  AlertCircle,
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
@@ -14,6 +15,7 @@ import {
   Paperclip,
   Plus,
   Save,
+  Tag,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -21,8 +23,16 @@ import { Button, Input } from '@evoapi/design-system';
 import { toast } from 'sonner';
 import { pipelinesService } from '@/services/pipelines';
 import { contactsService } from '@/services/contacts';
+import { labelsService } from '@/services/contacts/labelsService';
 import { useAppDataStore } from '@/store/appDataStore';
-import type { Deal, DealContact, Pipeline, ConversationForModal } from '@/types/analytics';
+import type {
+  Deal,
+  DealContact,
+  DealLabel,
+  Pipeline,
+  ConversationForModal,
+} from '@/types/analytics';
+import type { Label } from '@/types/settings';
 import CustomAttributes from '@/components/contacts/CustomAttributes';
 
 const TABS = [
@@ -106,30 +116,38 @@ export default function DealDetailPage() {
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
   const [availableContacts, setAvailableContacts] = useState<DealContact[]>([]);
   const [availableConversations, setAvailableConversations] = useState<ConversationForModal[]>([]);
+  const [availableLabels, setAvailableLabels] = useState<Label[]>([]);
   const [selectedContact, setSelectedContact] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [newCompanyName, setNewCompanyName] = useState('');
   const [selectedConversation, setSelectedConversation] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { agents, fetchAgents } = useAppDataStore();
 
   const load = useCallback(async () => {
     if (!pipelineId || !dealId) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const [dealData, pipelineData, contactsData, conversationsData] = await Promise.all([
-        pipelinesService.getDeal(dealId),
-        pipelinesService.getPipeline(pipelineId),
-        pipelinesService.getAvailableContacts(pipelineId),
-        pipelinesService.getAvailableConversations(pipelineId),
-      ]);
+      const [dealData, pipelineData, contactsData, conversationsData, labelsData] =
+        await Promise.all([
+          pipelinesService.getDeal(dealId),
+          pipelinesService.getPipeline(pipelineId),
+          pipelinesService.getAvailableContacts(pipelineId),
+          pipelinesService.getAvailableConversations(pipelineId),
+          labelsService.getLabels({ per_page: 100 }),
+        ]);
       setDeal(dealData);
       setPipeline(pipelineData);
       setAvailableContacts(contactsData as DealContact[]);
       setAvailableConversations(conversationsData);
+      setAvailableLabels(labelsData.data || []);
     } catch (error) {
       console.error(error);
+      setDeal(null);
+      setLoadError('O negócio não foi encontrado ou você não tem permissão para acessá-lo.');
       toast.error('Não foi possível carregar o negócio.');
     } finally {
       setLoading(false);
@@ -137,7 +155,8 @@ export default function DealDetailPage() {
   }, [dealId, pipelineId]);
 
   useEffect(() => {
-    void Promise.all([load(), fetchAgents()]);
+    void load();
+    void fetchAgents().catch(() => toast.error('Não foi possível carregar os responsáveis.'));
   }, [load, fetchAgents]);
 
   const dealAttributeKeys = useMemo(() => {
@@ -149,6 +168,36 @@ export default function DealDetailPage() {
     setDeal(current => (current ? { ...current, [key]: value } : current));
   };
 
+  const toggleDealLabel = (label: Label) => {
+    setDeal(current => {
+      if (!current) return current;
+      const labels = current.labels || [];
+      const isSelected = labels.some(
+        currentLabel =>
+          currentLabel.id === label.id ||
+          (currentLabel.title || currentLabel.name).toLocaleLowerCase() ===
+            label.title.toLocaleLowerCase(),
+      );
+      const nextLabel: DealLabel = {
+        id: label.id,
+        name: label.title,
+        title: label.title,
+        color: label.color,
+      };
+      return {
+        ...current,
+        labels: isSelected
+          ? labels.filter(
+              currentLabel =>
+                currentLabel.id !== label.id &&
+                (currentLabel.title || currentLabel.name).toLocaleLowerCase() !==
+                  label.title.toLocaleLowerCase(),
+            )
+          : [...labels, nextLabel],
+      };
+    });
+  };
+
   const saveDeal = async () => {
     if (!dealId || !deal) return;
     setSaving(true);
@@ -158,8 +207,9 @@ export default function DealDetailPage() {
         value: Number(deal.value || 0),
         currency: deal.currency,
         notes: deal.notes,
-        owner_id: deal.owner?.id,
-        company_id: deal.company?.id,
+        owner_id: deal.owner?.id ?? null,
+        company_id: deal.company?.id ?? null,
+        labels: (deal.labels || []).map(label => label.id || label.title || label.name),
         pipeline_stage_id: deal.pipeline_stage_id || deal.stage_id,
         custom_fields: deal.custom_fields,
       });
@@ -210,6 +260,59 @@ export default function DealDetailPage() {
     }
   };
 
+  const makePrimaryContact = async (contact: DealContact) => {
+    if (!dealId) return;
+    try {
+      setDeal(await pipelinesService.addDealContact(dealId, contact.id, true));
+      toast.success('Contato principal atualizado.');
+    } catch {
+      toast.error('Não foi possível alterar o contato principal.');
+    }
+  };
+
+  const removeContact = async (contact: DealContact) => {
+    if (!dealId) return;
+    try {
+      setDeal(await pipelinesService.removeDealContact(dealId, contact.id));
+      toast.success('Contato removido do negócio.');
+    } catch {
+      toast.error('Não foi possível remover o contato.');
+    }
+  };
+
+  const associateCompany = async () => {
+    if (!dealId || !selectedCompany) return;
+    try {
+      const updated = await pipelinesService.updateDeal(dealId, { company_id: selectedCompany });
+      setDeal(updated);
+      setSelectedCompany('');
+      toast.success('Empresa associada.');
+    } catch {
+      toast.error('Não foi possível associar a empresa.');
+    }
+  };
+
+  const removeConversation = async (conversationId: string) => {
+    if (!dealId) return;
+    try {
+      setDeal(await pipelinesService.removeDealConversation(dealId, conversationId));
+      toast.success('Conversa removida do negócio.');
+    } catch {
+      toast.error('Não foi possível remover a conversa.');
+    }
+  };
+
+  const removeFile = async (fileId: string) => {
+    if (!dealId) return;
+    try {
+      await pipelinesService.removeDealFile(dealId, fileId);
+      await load();
+      toast.success('Arquivo removido.');
+    } catch {
+      toast.error('Não foi possível remover o arquivo.');
+    }
+  };
+
   const uploadFiles = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!dealId || !event.target.files?.length) return;
     const files = Array.from(event.target.files);
@@ -227,10 +330,37 @@ export default function DealDetailPage() {
     event.target.value = '';
   };
 
-  if (loading || !deal) {
+  const goBack = () =>
+    navigate(
+      returnTo ||
+        (location.state as { returnTo?: string } | null)?.returnTo ||
+        `/pipelines/${pipelineId}`,
+    );
+
+  if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError || !deal) {
+    return (
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <AlertCircle className="mx-auto h-9 w-9 text-destructive" />
+          <h1 className="mt-4 text-lg font-semibold text-foreground">Negócio indisponível</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {loadError || 'Não foi possível carregar este negócio.'}
+          </p>
+          <div className="mt-6 flex justify-center gap-2">
+            <Button variant="outline" onClick={goBack}>
+              Voltar ao pipeline
+            </Button>
+            <Button onClick={() => void load()}>Tentar novamente</Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -246,16 +376,7 @@ export default function DealDetailPage() {
     <div className="min-h-full bg-muted/20">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="px-6 py-3 flex items-center gap-3 text-sm text-muted-foreground">
-          <button
-            onClick={() =>
-              navigate(
-                returnTo ||
-                  (location.state as { returnTo?: string } | null)?.returnTo ||
-                  `/pipelines/${pipelineId}`,
-              )
-            }
-            className="hover:text-foreground"
-          >
+          <button onClick={goBack} className="hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <button
@@ -283,6 +404,11 @@ export default function DealDetailPage() {
                 +{(deal.contact_count || 1) - 1}
               </span>
             )}
+            <div className="flex max-w-xl flex-wrap gap-1.5">
+              {(deal.labels || []).map(label => (
+                <DealTagPill key={label.id || label.name} label={label} />
+              ))}
+            </div>
           </div>
           <Button onClick={saveDeal} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{' '}
@@ -391,12 +517,8 @@ export default function DealDetailPage() {
                   contact={contact}
                   primary={deal.primary_contact?.id === contact.id}
                   onSave={updateContact}
-                  onMakePrimary={async () => {
-                    setDeal(await pipelinesService.addDealContact(deal.id, contact.id, true));
-                  }}
-                  onRemove={async () => {
-                    setDeal(await pipelinesService.removeDealContact(deal.id, contact.id));
-                  }}
+                  onMakePrimary={() => makePrimaryContact(contact)}
+                  onRemove={() => removeContact(contact)}
                 />
               ))}
             </div>
@@ -421,17 +543,7 @@ export default function DealDetailPage() {
                   </option>
                 ))}
               </select>
-              <Button
-                onClick={async () => {
-                  if (!selectedCompany) return;
-                  const selected = companyOptions.find(company => company.id === selectedCompany);
-                  if (!selected) return;
-                  updateLocal('company', selected);
-                  await pipelinesService.updateDeal(deal.id, { company_id: selected.id });
-                  await load();
-                }}
-                disabled={!selectedCompany}
-              >
+              <Button onClick={associateCompany} disabled={!selectedCompany}>
                 Associar empresa
               </Button>
             </div>
@@ -450,9 +562,8 @@ export default function DealDetailPage() {
                       name: newCompanyName.trim(),
                       type: 'company',
                     });
-                    await pipelinesService.updateDeal(deal.id, { company_id: company.id });
+                    setDeal(await pipelinesService.updateDeal(deal.id, { company_id: company.id }));
                     setNewCompanyName('');
-                    await load();
                     toast.success('Empresa criada e associada.');
                   } catch {
                     toast.error('Não foi possível criar a empresa.');
@@ -522,9 +633,11 @@ export default function DealDetailPage() {
                   onChange={event =>
                     updateLocal(
                       'owner',
-                      agents.find(
-                        agent => String(agent.id) === event.target.value,
-                      ) as Deal['owner'],
+                      event.target.value
+                        ? (agents.find(
+                            agent => String(agent.id) === event.target.value,
+                          ) as Deal['owner'])
+                        : null,
                     )
                   }
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -537,6 +650,45 @@ export default function DealDetailPage() {
                   ))}
                 </select>
               </Field>
+              <div className="space-y-3 md:col-span-2">
+                <div>
+                  <span className="text-sm font-medium text-foreground">Tags do negócio</span>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Estas tags pertencem à oportunidade e são as exibidas no card do pipeline.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-muted/20 p-3">
+                  {availableLabels.length ? (
+                    availableLabels.map(label => {
+                      const selected = (deal.labels || []).some(
+                        currentLabel =>
+                          currentLabel.id === label.id ||
+                          (currentLabel.title || currentLabel.name).toLocaleLowerCase() ===
+                            label.title.toLocaleLowerCase(),
+                      );
+                      return (
+                        <button
+                          key={label.id}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => toggleDealLabel(label)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-opacity ${selected ? 'opacity-100 ring-2 ring-primary/30' : 'opacity-55 hover:opacity-90'}`}
+                          style={{
+                            borderColor: label.color,
+                            backgroundColor: `${label.color}18`,
+                            color: label.color,
+                          }}
+                        >
+                          <Tag className="h-3 w-3" />
+                          {label.title}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Nenhuma tag cadastrada.</p>
+                  )}
+                </div>
+              </div>
               {dealAttributeKeys.map(key => (
                 <Field key={key} label={key}>
                   <Input
@@ -610,11 +762,7 @@ export default function DealDetailPage() {
                   <Button
                     variant="ghost"
                     className="text-destructive"
-                    onClick={async () =>
-                      setDeal(
-                        await pipelinesService.removeDealConversation(deal.id, conversation.id),
-                      )
-                    }
+                    onClick={() => removeConversation(conversation.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -660,13 +808,7 @@ export default function DealDetailPage() {
                   >
                     <Download className="h-4 w-4" />
                   </a>
-                  <button
-                    onClick={async () => {
-                      await pipelinesService.removeDealFile(deal.id, file.id);
-                      await load();
-                    }}
-                    className="p-2 text-destructive"
-                  >
+                  <button onClick={() => removeFile(file.id)} className="p-2 text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -733,6 +875,19 @@ function Empty({ text }: { text: string }) {
     <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
       {text}
     </div>
+  );
+}
+
+function DealTagPill({ label }: { label: DealLabel }) {
+  const color = label.color || '#1f93ff';
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold"
+      style={{ borderColor: color, backgroundColor: `${color}18`, color }}
+    >
+      <Tag className="h-3 w-3" />
+      {label.title || label.name}
+    </span>
   );
 }
 
