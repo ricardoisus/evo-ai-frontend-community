@@ -3,6 +3,19 @@
 /* Define o variant dark para o Tailwind v4 */
 @custom-variant dark (&:is(.dark *));
 
+/* Density is intentionally scoped to the authenticated shell. Because portals are
+   appended to body, the body class also scales dialogs/popovers and is removed by
+   MainLayout on logout/navigation to public pages. */
+body.authenticated-panel-density {
+  zoom: 0.9;
+  overflow: hidden;
+}
+
+.authenticated-shell {
+  width: calc(100vw / 0.9);
+  height: calc(100dvh / 0.9);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

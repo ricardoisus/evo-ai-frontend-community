@@ -6,7 +6,8 @@ export type AttributeModel =
   | 'contact_attribute' 
   | 'pipeline_attribute'
   | 'pipeline_stage_attribute'
-  | 'pipeline_item_attribute';
+  | 'pipeline_item_attribute'
+  | 'company_attribute';
 
 export const AttributeModel = {
   CONVERSATION_ATTRIBUTE: 'conversation_attribute' as const,
@@ -14,6 +15,7 @@ export const AttributeModel = {
   PIPELINE_ATTRIBUTE: 'pipeline_attribute' as const,
   PIPELINE_STAGE_ATTRIBUTE: 'pipeline_stage_attribute' as const,
   PIPELINE_ITEM_ATTRIBUTE: 'pipeline_item_attribute' as const,
+  COMPANY_ATTRIBUTE: 'company_attribute' as const,
 };
 
 // Attribute Display Types
@@ -123,9 +125,14 @@ export const ATTRIBUTE_MODEL_OPTIONS = [
     description: 'Atributos aplicados aos contatos'
   },
   {
+    value: 'company_attribute' as AttributeModel,
+    label: 'Empresas',
+    description: 'Atributos aplicados às empresas'
+  },
+  {
     value: 'pipeline_attribute' as AttributeModel,
-    label: 'Pipeline',
-    description: 'Atributos aplicados a pipelines, estágios ou items'
+    label: 'Negócios',
+    description: 'Campos configurados por pipeline para suas oportunidades'
   }
 ];
 
@@ -145,8 +152,8 @@ export const PIPELINE_TYPE_OPTIONS = [
   },
   {
     value: 'pipeline_item' as PipelineType,
-    label: 'Item',
-    description: 'Atributos aplicados aos items (deals/leads) do pipeline'
+    label: 'Negócio',
+    description: 'Campos aplicados às oportunidades do pipeline'
   }
 ];
 
@@ -256,8 +263,13 @@ export const ATTRIBUTE_TABS = [
     description: 'Atributos personalizados para contatos'
   },
   {
+    key: 'company_attribute' as AttributeModel,
+    name: 'Empresas',
+    description: 'Atributos personalizados globais para empresas'
+  },
+  {
     key: 'pipeline_attribute' as AttributeModel,
-    name: 'Pipeline',
-    description: 'Atributos personalizados para pipelines, estágios e items'
+    name: 'Negócios',
+    description: 'Atributos personalizados para pipelines, estágios e negócios'
   }
 ];

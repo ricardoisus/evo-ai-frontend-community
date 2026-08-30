@@ -219,6 +219,8 @@ export interface PipelineStats {
 
 export interface PipelineItem {
   id: string;
+  deal_id?: string;
+  title?: string;
   item_id: string; // conversation_id or contact_id
   type: 'conversation' | 'contact';
   pipeline_id: string;
@@ -227,6 +229,7 @@ export interface PipelineItem {
   is_lead: boolean;
   notes?: string;
   value?: number;
+  currency?: string;
   created_at: string | number;
   updated_at: string | number;
   contact?: {
@@ -235,7 +238,44 @@ export interface PipelineItem {
     email?: string;
     phone_number?: string;
     avatar_url?: string;
+    thumbnail?: string;
+    labels?: Array<{ name: string; color?: string }>;
   };
+  primary_contact?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone_number?: string;
+    avatar_url?: string;
+    thumbnail?: string;
+    labels?: Array<{ name: string; color?: string }>;
+    custom_attributes?: Record<string, unknown>;
+  };
+  company?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone_number?: string;
+    website?: string;
+    industry?: string;
+    custom_attributes?: Record<string, unknown>;
+  };
+  owner?: {
+    id: string;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+  };
+  contact_count?: number;
+  conversation_count?: number;
+  file_count?: number;
+  latest_message?: {
+    id: string;
+    content: string;
+    message_type: string;
+    created_at: string;
+    conversation_id: string;
+  } | null;
   assignee?: {
     id: string;
     name: string;
@@ -328,6 +368,74 @@ export interface PipelineItem {
     } | null;
   };
 }
+
+export interface DealContact {
+  id: string;
+  name: string;
+  type?: 'person' | 'company' | 'group';
+  email?: string;
+  phone_number?: string;
+  thumbnail?: string;
+  avatar_url?: string;
+  labels?: Array<{ name: string; color?: string }>;
+  custom_attributes?: Record<string, unknown>;
+}
+
+export interface DealConversation {
+  id: string;
+  display_id: string | number;
+  status: string;
+  inbox_id?: string;
+  contact?: DealContact;
+  latest_message?: PipelineItem['latest_message'];
+}
+
+export interface DealFile {
+  id: string;
+  name: string;
+  content_type?: string;
+  byte_size?: number;
+  file_type: string;
+  url: string;
+  thumbnail_url?: string;
+  created_at: string;
+}
+
+export interface DealHistoryEvent {
+  id: string;
+  action: string;
+  source: string;
+  changes: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  actor?: { id: string; name: string; avatar_url?: string } | null;
+  created_at: string;
+}
+
+export interface Deal extends PipelineItem {
+  title: string;
+  currency: string;
+  contacts: DealContact[];
+  conversations: DealConversation[];
+  files: DealFile[];
+  history: DealHistoryEvent[];
+  tasks: Array<Record<string, unknown>>;
+  scheduled_actions: Array<Record<string, unknown>>;
+}
+
+export interface CreateDealData {
+  title: string;
+  value?: number;
+  currency?: string;
+  notes?: string;
+  pipeline_stage_id?: string;
+  owner_id?: string;
+  company_id?: string;
+  contact_ids?: string[];
+  conversation_ids?: string[];
+  custom_fields?: Record<string, unknown>;
+}
+
+export type UpdateDealData = Partial<Omit<CreateDealData, 'contact_ids' | 'conversation_ids'>>;
 
 export interface MovePipelineItemData {
   item_id: string;

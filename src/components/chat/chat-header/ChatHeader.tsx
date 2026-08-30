@@ -174,7 +174,6 @@ const ChatHeader = ({
     async (pipeline: Pipeline, stage: PipelineStage) => {
       const currentPipelines = convPipelineData?.pipelines ?? [];
       const samePipeline = currentPipelines.find(p => p.id === pipeline.id);
-      const existingInOtherPipelines = currentPipelines.filter(p => p.id !== pipeline.id);
       // MOVER vs ADICIONAR por item ATIVO encontrável, não por presença do pipeline
       // (pipeline com jornada COMPLETED volta sem item ativo → precisa cair no ADD,
       // senão morre em moveError). Mesmo fix do ChatSidebar.
@@ -196,22 +195,9 @@ const ChatHeader = ({
           toast.error(t('pipeline.moveError'));
         }
       } else {
-        if (existingInOtherPipelines.length > 0) {
-          const removeResults = await Promise.allSettled(
-            existingInOtherPipelines.map(p => {
-              const item = findItemInPipeline(p, String(conversation.id));
-              return item?.id
-                ? pipelinesService.removeItemFromPipeline(p.id, item.id)
-                : Promise.resolve();
-            }),
-          );
-          if (removeResults.some(r => r.status === 'rejected')) {
-            toast.error(t('pipeline.removeError'));
-            reloadConvPipelineData();
-            return;
-          }
-        }
         try {
+          // A conversation can participate in multiple opportunities. Selecting
+          // another pipeline creates a new deal and leaves existing deals intact.
           await pipelinesService.addItemToPipeline(pipeline.id, {
             item_id: String(conversation.id),
             type: 'conversation',
@@ -224,7 +210,7 @@ const ChatHeader = ({
         }
       }
     },
-    [convPipelineData, conversation.id, t, refreshConversationBadge, reloadConvPipelineData],
+    [convPipelineData, conversation.id, t, refreshConversationBadge],
   );
 
   const handleRemoveFromPipeline = useCallback(

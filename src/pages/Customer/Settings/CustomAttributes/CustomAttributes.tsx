@@ -376,6 +376,8 @@ export default function CustomAttributes() {
                         ? t('empty.descriptionConversation')
                         : tab.key === 'contact_attribute'
                         ? t('empty.descriptionContact')
+                        : tab.key === 'company_attribute'
+                        ? 'Crie campos globais para os cadastros de empresas.'
                         : t('empty.descriptionPipeline')
                     }
                     action={{

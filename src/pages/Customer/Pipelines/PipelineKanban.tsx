@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { getContactColor } from '@/utils/avatar';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
 import {
@@ -21,7 +21,6 @@ import {
   Trash2,
   Copy,
   ArrowUpDown,
-  Phone,
   User,
   CalendarClock,
   AlertCircle,
@@ -54,13 +53,13 @@ import EditPipelineModal from '@/components/pipelines/EditPipelineModal';
 import CreateStageModal from '@/components/pipelines/CreateStageModal';
 import AddItemModal from '@/components/pipelines/AddItemModal';
 import RemoveItemModal from '@/components/pipelines/RemoveItemModal';
-import EditItemModal from '@/components/pipelines/EditItemModal';
 import EditStageModal from '@/components/pipelines/EditStageModal';
 import DeleteStageModal from '@/components/pipelines/DeleteStageModal';
 import DeletePipelineModal from '@/components/pipelines/DeletePipelineModal';
 import ReorderStagesModal from '@/components/pipelines/ReorderStagesModal';
 import PipelineCaptureFormsModal from '@/components/pipelines/PipelineCaptureFormsModal';
 import { ScheduleActionModal } from '@/components/scheduledActions';
+import { getDealCardPresentation } from './dealCardPresentation';
 
 // Status/priority badge styles use the design system's semantic Tailwind classes
 // (same palette Chat/Contacts use), with dark-mode variants — NOT arbitrary hex.
@@ -106,6 +105,7 @@ export default function PipelineKanban() {
   const { t } = useLanguage('pipelines');
   const { pipelineId } = useParams<{ pipelineId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const searchQuery = searchParams.get('search') ?? '';
@@ -164,9 +164,7 @@ export default function PipelineKanban() {
   const [showRemoveItemModal, setShowRemoveItemModal] = useState(false);
   const [itemToRemove, setItemToRemove] = useState<PipelineItem | null>(null);
   const [isRemovingItem, setIsRemovingItem] = useState(false);
-  const [showEditItemModal, setShowEditItemModal] = useState(false);
-  const [itemToEdit, setItemToEdit] = useState<PipelineItem | null>(null);
-  const [isEditingItem, setIsEditingItem] = useState(false);
+  const boardScrollRef = useRef<HTMLDivElement>(null);
   const [showEditStageModal, setShowEditStageModal] = useState(false);
   const [showDeleteStageModal, setShowDeleteStageModal] = useState(false);
   const [stageToEdit, setStageToEdit] = useState<PipelineStage | null>(null);
@@ -202,7 +200,7 @@ export default function PipelineKanban() {
     } finally {
       setLoading(false);
     }
-  }, [pipelineId]);
+  }, [pipelineId, t]);
 
   // Load all pipelines for selector
   const loadAllPipelines = useCallback(async () => {
@@ -219,6 +217,15 @@ export default function PipelineKanban() {
     loadPipelineData();
     loadAllPipelines();
   }, [loadPipelineData, loadAllPipelines]);
+
+  useEffect(() => {
+    if (loading || !pipelineId || !boardScrollRef.current) return;
+    const stored = sessionStorage.getItem(`pipeline-scroll:${pipelineId}`);
+    if (stored) {
+      boardScrollRef.current.scrollLeft = Number(stored);
+      sessionStorage.removeItem(`pipeline-scroll:${pipelineId}`);
+    }
+  }, [loading, pipelineId]);
 
   // Handle pipeline change
   const handlePipelineChange = (newPipelineId: string) => {
@@ -658,42 +665,12 @@ export default function PipelineKanban() {
   };
 
   const handleEditItem = (item: PipelineItem) => {
-    setItemToEdit(item);
-    setShowEditItemModal(true);
-  };
-
-  const handleUpdateItem = async (data: {
-    notes: string;
-    stage_id: string;
-    services: Array<{ name: string; value: string }>;
-    currency: string;
-    custom_attributes?: Record<string, unknown>;
-  }) => {
-    if (!itemToEdit || !pipelineId) return;
-
-    setIsEditingItem(true);
-    try {
-      await pipelinesService.updateItemInPipeline(pipelineId, itemToEdit.id, {
-        pipeline_stage_id: data.stage_id,
-        notes: data.notes,
-        custom_fields: {
-          services: data.services,
-          currency: data.currency,
-          // Merge custom attributes into custom_fields (backend expects them here)
-          ...(data.custom_attributes || {}),
-        },
-      });
-      toast.success(t('kanban.messages.itemUpdated'));
-      setShowEditItemModal(false);
-      setItemToEdit(null);
-      // Reload pipeline data to reflect changes
-      await loadPipelineData();
-    } catch (error) {
-      console.error('Error updating item:', error);
-      toast.error(t('kanban.messages.itemUpdateError'));
-    } finally {
-      setIsEditingItem(false);
-    }
+    if (!pipelineId) return;
+    if (boardScrollRef.current) sessionStorage.setItem(`pipeline-scroll:${pipelineId}`, String(boardScrollRef.current.scrollLeft));
+    const returnTo = `${location.pathname}${location.search}`;
+    navigate(`/pipelines/${pipelineId}/deals/${item.deal_id || item.id}?tab=activities&returnTo=${encodeURIComponent(returnTo)}`, {
+      state: { returnTo },
+    });
   };
 
   // Stage management handlers
@@ -1185,7 +1162,7 @@ export default function PipelineKanban() {
 
         {/* Kanban Board */}
         <div className="flex-1 overflow-hidden">
-          <div className="h-full overflow-x-auto overflow-y-hidden px-4 sm:px-6 lg:px-8 py-6">
+          <div ref={boardScrollRef} className="h-full overflow-x-auto overflow-y-hidden px-4 sm:px-6 lg:px-8 py-6">
             {/* Kanban Content */}
             <div
               className="flex gap-6 h-full pb-6"
@@ -1266,7 +1243,8 @@ export default function PipelineKanban() {
                     >
                       {stageItems.map(item => {
                         const pBucket = priorityBucket(item.conversation?.priority);
-                        const firstLabel = item.conversation?.labels?.[0]?.title;
+                        const card = getDealCardPresentation(item);
+                        const { contact, labels, message, avatarUrl: contactImage } = card;
                         const moveTargets = stages.filter(s => s.id !== item.stage_id);
                         return (
                         <div
@@ -1353,74 +1331,41 @@ export default function PipelineKanban() {
                             </DropdownMenu>
                           </div>
 
-                          {/* Contact header */}
+                          {/* Deal header */}
                           <div className="flex items-start gap-3 mb-2.5 pr-14">
-                            <div
-                              className="w-[34px] h-[34px] shrink-0 rounded-full flex items-center justify-center text-white text-[13px] font-bold shadow-sm"
-                              style={{ backgroundColor: getContactColor(item.contact?.name) }}
-                            >
-                              {item.contact?.name?.[0]?.toUpperCase() || 'U'}
-                            </div>
+                            {contactImage ? <img src={contactImage} alt="" className="w-10 h-10 shrink-0 rounded-full object-cover shadow-sm" /> : <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-primary/15 text-primary text-[13px] font-bold shadow-sm">{contact?.name?.[0]?.toUpperCase() || '?'}</div>}
                             <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-1.5">
-                                <h4 className="text-sm font-bold text-foreground truncate">
-                                  {item.contact?.name || t('kanban.conversation.unknownUser')}
-                                </h4>
-                                {item.conversation?.display_id && (
-                                  <span className="text-xs text-muted-foreground shrink-0">#{item.conversation.display_id}</span>
-                                )}
-                              </div>
-                              {item.contact?.phone_number && (
-                                <div className="flex items-center gap-1 text-[12.5px] text-muted-foreground mt-0.5">
-                                  <Phone className="w-3 h-3 shrink-0" />
-                                  <span className="truncate">{item.contact.phone_number}</span>
-                                </div>
-                              )}
+                              <h4 className="text-sm font-bold text-foreground truncate">{card.title}</h4>
+                              <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">{card.secondary}</p>
                             </div>
+                            {card.additionalContacts > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">+{card.additionalContacts}</span>}
                           </div>
 
                           {/* Message preview */}
-                          {item.conversation?.last_non_activity_message?.content && (
+                          {message?.content && (
                             <div className="mb-2.5 p-2.5 bg-muted/50 rounded-lg">
                               <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[12.5px] font-bold text-foreground truncate">
-                                  {item.conversation.last_non_activity_message.sender?.name || t('kanban.conversation.system')}
-                                </span>
+                                <span className="text-[11.5px] font-semibold text-foreground truncate">{item.conversation?.inbox?.name || 'Conversa'}</span>
                                 <span className="text-[11.5px] text-muted-foreground shrink-0">
-                                  {new Date(
-                                    typeof item.conversation.last_non_activity_message.created_at === 'number'
-                                      ? item.conversation.last_non_activity_message.created_at * 1000
-                                      : item.conversation.last_non_activity_message.created_at,
-                                  ).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                  {new Date(/^\d+$/.test(String(message.created_at)) ? Number(message.created_at) * 1000 : message.created_at).toLocaleDateString('pt-BR')}
                                 </span>
                               </div>
-                              <p
-                                className="text-[12.5px] text-muted-foreground line-clamp-2 leading-relaxed [&_p]:inline [&_br]:hidden"
-                                dangerouslySetInnerHTML={{
-                                  __html:
-                                    item.conversation.last_non_activity_message.processed_message_content ||
-                                    item.conversation.last_non_activity_message.content || '',
-                                }}
-                              />
+                              <p className="text-[12.5px] text-muted-foreground line-clamp-2 leading-relaxed">{message.content}</p>
                             </div>
                           )}
 
-                          {/* Services value */}
-                          {item.services_info?.has_services && item.services_info.total_value > 0 && (
+                          {card.value > 0 && (
                             <div className="flex items-center justify-between mb-2.5">
                               <span className="text-[11.5px] text-muted-foreground">{t('kanban.conversation.valueLabel')}</span>
-                              <span className="text-[12.5px] font-bold text-primary">{item.services_info.formatted_total}</span>
+                              <span className="text-[12.5px] font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: card.currency }).format(card.value)}</span>
                             </div>
                           )}
 
                           {/* Footer: tag + priority + status */}
-                          {(firstLabel || item.conversation?.status || pBucket) && (
+                          {(labels.length > 0 || item.conversation?.status || pBucket) && (
                             <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                              {firstLabel && (
-                                <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground max-w-[120px] truncate">
-                                  {firstLabel}
-                                </span>
-                              )}
+                              {labels.slice(0, 2).map(label => <span key={label.name} className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md max-w-[120px] truncate" style={{ backgroundColor: `${label.color || '#1f93ff'}20`, color: label.color || '#1f93ff' }}>{label.name}</span>)}
+                              {labels.length > 2 && <span className="text-[11px] text-muted-foreground">+{labels.length - 2}</span>}
                               {pBucket && (
                                 <span
                                   className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${PRIORITY_BADGE_CLASS[pBucket]}`}
@@ -1448,10 +1393,10 @@ export default function PipelineKanban() {
                                 ? new Date(item.conversation.last_activity_at * 1000).toLocaleDateString('pt-BR')
                                 : new Date((item.entered_at || 0) * 1000).toLocaleDateString('pt-BR')}
                             </span>
-                            {item.conversation?.assignee && (
+                            {item.owner && (
                               <span className="flex items-center gap-1 min-w-0">
                                 <User className="w-3 h-3 shrink-0" />
-                                <span className="truncate max-w-24">{item.conversation.assignee.name}</span>
+                                <span className="truncate max-w-24">{item.owner.name}</span>
                               </span>
                             )}
                           </div>
@@ -1482,7 +1427,7 @@ export default function PipelineKanban() {
               })}
 
               {/* Add Stage Column */}
-              <div className="w-80 flex-shrink-0">
+              <div className="w-[340px] flex-shrink-0">
                 <div
                   className="bg-muted/50 rounded-xl p-6 h-full border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors cursor-pointer"
                   onClick={() => setShowCreateStageModal(true)}
@@ -1549,23 +1494,6 @@ export default function PipelineKanban() {
         onConfirm={handleConfirmRemoveItem}
         loading={isRemovingItem}
       />
-
-      {/* Edit Item Modal */}
-      {itemToEdit && (
-        <EditItemModal
-          open={showEditItemModal}
-          onOpenChange={setShowEditItemModal}
-          item={itemToEdit}
-          stages={stages}
-          pipeline={pipeline}
-          onSubmit={handleUpdateItem}
-          loading={isEditingItem}
-          onSchedule={it => {
-            setSelectedConversationForSchedule(it);
-            setScheduleActionOpen(true);
-          }}
-        />
-      )}
 
       {/* Edit Stage Modal */}
       <EditStageModal

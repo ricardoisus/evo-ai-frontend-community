@@ -48,6 +48,7 @@ import AutomationForm from '../pages/Customer/Automation/AutomationForm';
 import Pipelines from '@/pages/Customer/Pipelines/Pipelines';
 import PipelineKanban from '@/pages/Customer/Pipelines/PipelineKanban';
 import PipelineFormPage from '@/pages/Customer/Pipelines/PipelineFormPage';
+import DealDetailPage from '@/pages/Customer/Pipelines/DealDetailPage';
 import { AccountSettings } from '@/pages/Customer/Settings/Account';
 import Teams from '@/pages/Customer/Settings/Teams/Teams';
 import { AddUsers } from '@/pages/Customer/Settings/Teams';
@@ -482,6 +483,21 @@ const AppRouter = () => {
                   <MainLayout>
                     <PermissionRoute resource="pipelines" action="read">
                       <PipelineKanban />
+                    </PermissionRoute>
+                  </MainLayout>
+                </CustomerRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/pipelines/:pipelineId/deals/:dealId"
+            element={
+              <PrivateRoute>
+                <CustomerRoute>
+                  <MainLayout>
+                    <PermissionRoute resource="pipelines" action="read">
+                      <DealDetailPage />
                     </PermissionRoute>
                   </MainLayout>
                 </CustomerRoute>

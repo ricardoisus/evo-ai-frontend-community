@@ -18,10 +18,60 @@ import type {
   AvailableContactsResponse,
   PipelineItemResponse,
   ConversationForModal,
+  Deal,
+  DealFile,
+  CreateDealData,
+  UpdateDealData,
 } from '@/types/analytics';
 import { Contact } from '@/types';
 
 class PipelinesService {
+  async getDeal(dealId: string): Promise<Deal> {
+    const response = await api.get(`/deals/${dealId}`);
+    return extractData<Deal>(response);
+  }
+
+  async createDeal(pipelineId: string, data: CreateDealData): Promise<Deal> {
+    const response = await api.post(`/pipelines/${pipelineId}/deals`, { deal: data });
+    return extractData<Deal>(response);
+  }
+
+  async updateDeal(dealId: string, data: UpdateDealData): Promise<Deal> {
+    const response = await api.patch(`/deals/${dealId}`, { deal: data });
+    return extractData<Deal>(response);
+  }
+
+  async addDealContact(dealId: string, contactId: string, primary = false): Promise<Deal> {
+    const response = await api.post(`/deals/${dealId}/contacts`, { contact_id: contactId, primary });
+    return extractData<Deal>(response);
+  }
+
+  async removeDealContact(dealId: string, contactId: string): Promise<Deal> {
+    const response = await api.delete(`/deals/${dealId}/contacts/${contactId}`);
+    return extractData<Deal>(response);
+  }
+
+  async addDealConversation(dealId: string, conversationId: string): Promise<Deal> {
+    const response = await api.post(`/deals/${dealId}/conversations`, { conversation_id: conversationId });
+    return extractData<Deal>(response);
+  }
+
+  async removeDealConversation(dealId: string, conversationId: string): Promise<Deal> {
+    const response = await api.delete(`/deals/${dealId}/conversations/${conversationId}`);
+    return extractData<Deal>(response);
+  }
+
+  async uploadDealFiles(dealId: string, files: File[]): Promise<DealFile[]> {
+    const payload = new FormData();
+    files.forEach(file => payload.append('files[]', file));
+    const response = await api.post(`/deals/${dealId}/files`, payload);
+    return extractData<DealFile[]>(response);
+  }
+
+  async removeDealFile(dealId: string, fileId: string): Promise<void> {
+    await api.delete(`/deals/${dealId}/files/${fileId}`);
+  }
+
   // List all pipelines
   async getPipelines(params?: PipelinesListParams): Promise<PipelinesResponse> {
     const response = await api.get('/pipelines', {

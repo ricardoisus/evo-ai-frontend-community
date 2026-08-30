@@ -4,6 +4,7 @@ interface CustomAttributesProps {
   attributes: Record<string, unknown>;
   onAttributesChange: (attributes: Record<string, unknown>) => void;
   disabled?: boolean;
+  attributeModel?: 'contact_attribute' | 'company_attribute';
 }
 
 /**
@@ -14,10 +15,11 @@ export default function CustomAttributes({
   attributes,
   onAttributesChange,
   disabled = false,
+  attributeModel = 'contact_attribute',
 }: CustomAttributesProps) {
   return (
     <CustomAttributesForm
-      attributeModel="contact_attribute"
+      attributeModel={attributeModel}
       attributes={attributes}
       mode="form"
       onAttributesChange={onAttributesChange}
