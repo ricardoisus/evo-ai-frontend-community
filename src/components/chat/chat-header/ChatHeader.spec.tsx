@@ -226,7 +226,7 @@ describe('ChatHeader pipeline', () => {
     });
   });
 
-  it('removes from old pipeline before adding to new pipeline (C1)', async () => {
+  it('keeps the existing deal when associating the conversation to another pipeline', async () => {
     const existingItem = {
       id: 'item-old',
       item_id: '42',
@@ -252,7 +252,7 @@ describe('ChatHeader pipeline', () => {
     await openPipelineAndSelectStage(user, 'Pipeline p-new', 'StageNew');
 
     await waitFor(() => {
-      expect(pipelinesService.removeItemFromPipeline).toHaveBeenCalledWith('p-old', 'item-old');
+      expect(pipelinesService.removeItemFromPipeline).not.toHaveBeenCalled();
       expect(pipelinesService.addItemToPipeline).toHaveBeenCalledWith('p-new', {
         item_id: '42',
         type: 'conversation',
@@ -387,7 +387,7 @@ describe('ChatHeader pipeline', () => {
     });
   });
 
-  it('removes ALL pipelines when conversation is in 2+ pipelines before adding to new one (H1)', async () => {
+  it('keeps all existing deals when the conversation is added to a third pipeline', async () => {
     const pOld1 = makePipeline('p-old1', [{ id: 'stage-p-old1', name: 'StageA' }], [makeItem('item-1', 'p-old1')]);
     const pOld2 = makePipeline('p-old2', [{ id: 'stage-p-old2', name: 'StageB' }], [makeItem('item-2', 'p-old2')]);
     const pNew  = makePipeline('p-new',  [{ id: 'stage-new',    name: 'StageC' }]);
@@ -404,9 +404,7 @@ describe('ChatHeader pipeline', () => {
     await openPipelineAndSelectStage(user, 'Pipeline p-new', 'StageC');
 
     await waitFor(() => {
-      expect(pipelinesService.removeItemFromPipeline).toHaveBeenCalledWith('p-old1', 'item-1');
-      expect(pipelinesService.removeItemFromPipeline).toHaveBeenCalledWith('p-old2', 'item-2');
-      expect(pipelinesService.removeItemFromPipeline).toHaveBeenCalledTimes(2);
+      expect(pipelinesService.removeItemFromPipeline).not.toHaveBeenCalled();
       expect(pipelinesService.addItemToPipeline).toHaveBeenCalledWith('p-new', {
         item_id: '42',
         type: 'conversation',
@@ -444,16 +442,14 @@ describe('ChatHeader pipeline', () => {
     });
   });
 
-  it('reloads conv pipeline data when a cross-pipeline remove fails partially', async () => {
+  it('reports an add failure without removing any existing deal', async () => {
     const pOld1 = makePipeline('p-old1', [{ id: 'stage-p-old1', name: 'StageA' }], [makeItem('item-1', 'p-old1')]);
     const pOld2 = makePipeline('p-old2', [{ id: 'stage-p-old2', name: 'StageB' }], [makeItem('item-2', 'p-old2')]);
     const pNew  = makePipeline('p-new',  [{ id: 'stage-new',    name: 'StageC' }]);
 
     vi.mocked(pipelinesService.getPipelines).mockResolvedValue({ data: [pOld1, pOld2, pNew] } as never);
     vi.mocked(pipelinesService.getPipelinesByConversation).mockResolvedValue([pOld1, pOld2]);
-    vi.mocked(pipelinesService.removeItemFromPipeline)
-      .mockResolvedValueOnce({ success: true, message: '' })
-      .mockRejectedValueOnce(new Error('network'));
+    vi.mocked(pipelinesService.addItemToPipeline).mockRejectedValueOnce(new Error('network'));
 
     render(<ChatHeader {...defaultProps} />);
     await waitFor(() => expect(pipelinesService.getPipelines).toHaveBeenCalled());
@@ -462,9 +458,9 @@ describe('ChatHeader pipeline', () => {
     await openPipelineAndSelectStage(user, 'Pipeline p-new', 'StageC');
 
     await waitFor(() => {
-      expect(pipelinesService.addItemToPipeline).not.toHaveBeenCalled();
-      expect(toast.error).toHaveBeenCalledWith('pipeline.removeError');
-      expect(pipelinesService.getPipelinesByConversation.mock.calls.length).toBeGreaterThanOrEqual(2);
+      expect(pipelinesService.addItemToPipeline).toHaveBeenCalled();
+      expect(pipelinesService.removeItemFromPipeline).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith('pipeline.addError');
     });
   });
 

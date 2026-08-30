@@ -32,7 +32,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev --host 127.0.0.1 --port 5173',
+    command:
+      'VITE_API_URL=http://127.0.0.1:5173 VITE_AUTH_API_URL=http://127.0.0.1:5173 pnpm dev --host 127.0.0.1 --port 5173',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,

@@ -76,6 +76,8 @@ export default function AddItemModal({
   const [itemType, setItemType] = useState<'conversation' | 'contact'>('conversation');
   const [searchQuery, setSearchQuery] = useState('');
   const [notes, setNotes] = useState('');
+  const [title, setTitle] = useState('');
+  const [value, setValue] = useState('');
   const [availableItems, setAvailableItems] = useState<Item[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -87,6 +89,8 @@ export default function AddItemModal({
       setSelectedItem(null);
       setSearchQuery('');
       setNotes('');
+      setTitle('');
+      setValue('');
       setItemType('conversation');
 
       // Pre-select stage
@@ -137,24 +141,27 @@ export default function AddItemModal({
   // Handle item selection
   const handleItemSelect = (item: Item) => {
     setSelectedItem(item);
+    setTitle(current => current || `Negócio - ${getItemDisplayName(item)}`);
   };
 
   // Handle adding item to pipeline
   const handleAddItem = async () => {
-    if (!selectedStage || !selectedItem) return;
+    if (!selectedStage || !title.trim()) return;
 
     setIsAdding(true);
     try {
-      await pipelinesService.addItemToPipeline(pipelineId, {
-        item_id: selectedItem.id,
-        type: itemType,
+      await pipelinesService.createDeal(pipelineId, {
+        title: title.trim(),
+        value: Number(value || 0),
+        currency: 'BRL',
         pipeline_stage_id: selectedStage.id,
-        custom_fields: {},
-        notes: notes,
+        notes,
+        contact_ids: selectedItem && itemType === 'contact' ? [selectedItem.id] : [],
+        conversation_ids: selectedItem && itemType === 'conversation' ? [selectedItem.id] : [],
       });
 
       // Remove from available items
-      setAvailableItems(prev => prev.filter(item => item.id !== selectedItem.id));
+      if (selectedItem) setAvailableItems(prev => prev.filter(item => item.id !== selectedItem.id));
 
       toast.success(t('addItem.success'));
       onItemAdded();
@@ -182,7 +189,7 @@ export default function AddItemModal({
     return item.name || t('addItem.unknownUser');
   };
 
-  const canAddItem = selectedStage && selectedItem;
+  const canAddItem = selectedStage && title.trim();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,6 +200,16 @@ export default function AddItemModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4 flex-1 overflow-y-auto">
+          <div className="grid gap-3 sm:grid-cols-[1fr_180px]">
+            <div className="grid gap-2">
+              <Label htmlFor="deal-title">Título do negócio</Label>
+              <Input id="deal-title" value={title} onChange={event => setTitle(event.target.value)} placeholder="Ex.: Renovação anual" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="deal-value">Valor (BRL)</Label>
+              <Input id="deal-value" type="number" min="0" step="0.01" value={value} onChange={event => setValue(event.target.value)} placeholder="0,00" />
+            </div>
+          </div>
           {/* Stage Selection */}
           <div className="grid gap-2">
             <Label>{t('addItem.selectStage')}</Label>
@@ -224,7 +241,7 @@ export default function AddItemModal({
 
           {/* Item Type Selection */}
           <div className="grid gap-2">
-            <Label>{t('addItem.itemType')}</Label>
+            <Label>Associação opcional</Label>
             <Select
               value={itemType}
               onValueChange={(value: 'conversation' | 'contact') => {

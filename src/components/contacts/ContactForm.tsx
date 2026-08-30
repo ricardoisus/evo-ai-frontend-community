@@ -868,6 +868,7 @@ export default function ContactForm({
           {t('form.sections.customAttributes')}
         </h3>
         <CustomAttributes
+          attributeModel={isCompany ? 'company_attribute' : 'contact_attribute'}
           attributes={customAttributes}
           onAttributesChange={setCustomAttributes}
           disabled={loading}

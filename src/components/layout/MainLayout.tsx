@@ -61,6 +61,11 @@ export default function MainLayout({ children }: MainLayoutProps) {
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
   }, [isCollapsed]);
 
+  useEffect(() => {
+    document.body.classList.add('authenticated-panel-density');
+    return () => document.body.classList.remove('authenticated-panel-density');
+  }, []);
+
   // Menu items baseado no tipo de usuário e rota atual
   const getMenuItems = useCallback((): MenuItemType[] => {
     return getCustomerMenuItems(t);
@@ -107,7 +112,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   }
 
   return (
-    <div className="flex flex-col h-dvh bg-background transition-colors duration-150 ease-in-out">
+    <div className="authenticated-shell flex flex-col bg-background transition-colors duration-150 ease-in-out">
 
       {/* Header */}
       <Header
