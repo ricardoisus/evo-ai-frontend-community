@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Settings } from 'lucide-react';
+import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 
 vi.mock('../../hooks/useLanguage', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
@@ -23,12 +24,12 @@ vi.mock('@/hooks/useDashboardApps', () => ({
 }));
 
 vi.mock('@/utils/injectDashboardApps', () => ({
-  injectDashboardAppsIntoMenu: (items: any[]) => items,
+  injectDashboardAppsIntoMenu: (items: unknown[]) => items,
 }));
 
 vi.mock('./config/menuItems', () => ({
   getCustomerMenuItems: () => [],
-  filterMenuItemsByPermissions: (items: any[]) => items,
+  filterMenuItemsByPermissions: (items: unknown[]) => items,
 }));
 
 vi.mock('./components', () => ({
@@ -45,15 +46,15 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('@evoapi/design-system', () => ({
-  Button: ({ children, onClick, ...props }: any) => (
+  Button: ({ children, onClick, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button type="button" onClick={onClick} {...props}>{children}</button>
   ),
-  Dialog: ({ children }: any) => <>{children}</>,
-  DialogContent: ({ children }: any) => <div>{children}</div>,
-  DialogHeader: ({ children }: any) => <div>{children}</div>,
-  DialogTitle: ({ children }: any) => <div>{children}</div>,
-  DialogDescription: ({ children }: any) => <div>{children}</div>,
-  DialogFooter: ({ children }: any) => <div>{children}</div>,
+  Dialog: ({ children }: PropsWithChildren) => <>{children}</>,
+  DialogContent: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  DialogHeader: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  DialogTitle: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  DialogDescription: ({ children }: PropsWithChildren) => <div>{children}</div>,
+  DialogFooter: ({ children }: PropsWithChildren) => <div>{children}</div>,
 }));
 
 const mockUseMenuState = vi.hoisted(() => vi.fn());
@@ -84,7 +85,7 @@ const defaultMenuState = () => ({
 
 import MainLayout from './MainLayout';
 
-describe('MainLayout — backdrop dismissal', () => {
+describe('MainLayout — authenticated shell', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.setItem('sidebar-collapsed', 'true');
@@ -101,32 +102,21 @@ describe('MainLayout — backdrop dismissal', () => {
     );
   }
 
-  it('renders accessible backdrop when activeSubmenu is set and sidebar is collapsed', () => {
-    renderLayout();
-    const backdrop = screen.getByRole('button', { name: 'sidebar.closeSubmenu' });
-    expect(backdrop).toBeInTheDocument();
-    expect(backdrop).toHaveAttribute('tabIndex', '0');
+  it('applies the authenticated density class and removes it on unmount', () => {
+    const view = renderLayout();
+    expect(document.body).toHaveClass('authenticated-panel-density');
+    view.unmount();
+    expect(document.body).not.toHaveClass('authenticated-panel-density');
   });
 
-  it('calls setActiveSubmenu(null) when backdrop is clicked', () => {
+  it('renders the compensated authenticated shell', () => {
     renderLayout();
-    const backdrop = screen.getByRole('button', { name: 'sidebar.closeSubmenu' });
-    fireEvent.click(backdrop);
-    expect(mockSetActiveSubmenu).toHaveBeenCalledWith(null);
+    expect(screen.getByTestId('content').closest('.authenticated-shell')).toBeInTheDocument();
   });
 
-  it('calls setActiveSubmenu(null) when Enter is pressed on backdrop', () => {
+  it('does not overlay the content when a collapsed sidebar submenu is open', () => {
     renderLayout();
-    const backdrop = screen.getByRole('button', { name: 'sidebar.closeSubmenu' });
-    fireEvent.keyDown(backdrop, { key: 'Enter' });
-    expect(mockSetActiveSubmenu).toHaveBeenCalledWith(null);
-  });
-
-  it('calls setActiveSubmenu(null) when Space is pressed on backdrop', () => {
-    renderLayout();
-    const backdrop = screen.getByRole('button', { name: 'sidebar.closeSubmenu' });
-    fireEvent.keyDown(backdrop, { key: ' ' });
-    expect(mockSetActiveSubmenu).toHaveBeenCalledWith(null);
+    expect(screen.queryByRole('button', { name: 'sidebar.closeSubmenu' })).not.toBeInTheDocument();
   });
 
   it('does not render backdrop when sidebar is expanded', () => {

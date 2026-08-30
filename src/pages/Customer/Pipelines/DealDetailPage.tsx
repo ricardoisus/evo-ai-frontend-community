@@ -376,7 +376,11 @@ export default function DealDetailPage() {
     <div className="min-h-full bg-muted/20">
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
         <div className="px-6 py-3 flex items-center gap-3 text-sm text-muted-foreground">
-          <button onClick={goBack} className="hover:text-foreground">
+          <button
+            onClick={goBack}
+            className="hover:text-foreground"
+            aria-label="Voltar ao pipeline"
+          >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <button
@@ -487,6 +491,7 @@ export default function DealDetailPage() {
           >
             <div className="mb-5 flex gap-2">
               <select
+                aria-label="Selecionar contato"
                 value={selectedContact}
                 onChange={event => setSelectedContact(event.target.value)}
                 className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
@@ -532,6 +537,7 @@ export default function DealDetailPage() {
           >
             <div className="mb-5 flex gap-2">
               <select
+                aria-label="Selecionar empresa"
                 value={selectedCompany}
                 onChange={event => setSelectedCompany(event.target.value)}
                 className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
@@ -596,6 +602,7 @@ export default function DealDetailPage() {
               </Field>
               <Field label="Etapa">
                 <select
+                  aria-label="Etapa"
                   value={deal.pipeline_stage_id || deal.stage_id}
                   onChange={event => updateLocal('pipeline_stage_id', event.target.value)}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -618,6 +625,7 @@ export default function DealDetailPage() {
               </Field>
               <Field label="Moeda">
                 <select
+                  aria-label="Moeda"
                   value={deal.currency}
                   onChange={event => updateLocal('currency', event.target.value)}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -629,6 +637,7 @@ export default function DealDetailPage() {
               </Field>
               <Field label="Responsável">
                 <select
+                  aria-label="Responsável"
                   value={deal.owner?.id || ''}
                   onChange={event =>
                     updateLocal(
@@ -722,6 +731,7 @@ export default function DealDetailPage() {
           >
             <div className="mb-5 flex gap-2">
               <select
+                aria-label="Selecionar conversa"
                 value={selectedConversation}
                 onChange={event => setSelectedConversation(event.target.value)}
                 className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm"
