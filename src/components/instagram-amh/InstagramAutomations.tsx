@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Instagram, Plus, ArrowRight, RefreshCw } from 'lucide-react';
 import { automationApi, type Catalog } from './automationApi';
 import type { AutomationSummary } from './api';
-import { AmhAutomation } from './AmhAutomation';
+import { studioApi, type StudioApi } from './studio/studioApi';
 import type { ProofPermissions } from './AmhVisualProof';
 import { extractError } from '@/utils/apiHelpers';
 import './automation.css';
 
+const InstagramStudio = lazy(() => import('./studio/InstagramStudio').then(m => ({ default: m.InstagramStudio })));
+
 const status: Record<string, string> = { active: 'Ativa', test: 'Em teste restrito', paused: 'Pausada' };
 export function InstagramAutomations({ permissions, api = automationApi }: { permissions: ProofPermissions; api?: typeof automationApi }) {
+  const editorApi = useMemo(() => ({ ...studioApi, get: api.get as unknown as StudioApi['get'] }), [api]);
   const [items, setItems] = useState<AutomationSummary[]>([]);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -31,11 +34,11 @@ export function InstagramAutomations({ permissions, api = automationApi }: { per
     });
     return () => { live = false; };
   }, [refresh, api]);
-  if (selected !== null) return <AmhAutomation api={api} permissions={permissions} initialId={selected || undefined}
-    onBack={() => { setSelected(null); setRefresh(n => n + 1); }} />;
+  if (selected !== null) return <Suspense fallback={<p role="status">Abrindo construtor…</p>}><InstagramStudio api={editorApi} catalog={catalog} permissions={permissions} initialId={selected || undefined}
+    onBack={() => { setSelected(null); setRefresh(n => n + 1); }} /></Suspense>;
   const visible = items.filter(item => (filter === 'all' || item.state === filter) && item.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const active = items.filter(item => item.state === 'active').length;
-  return <section className="ig-automation">
+  return <section className="ig-automation ig-automation-overview">
     <header className="ig-title">
       <div><span className="ig-eyebrow">RELACIONAMENTO / INSTAGRAM</span><h1>Automações do Instagram</h1>
         <p>Transforme comentários em conversas e entregue o material certo para cada conteúdo.</p></div>
@@ -62,7 +65,7 @@ export function InstagramAutomations({ permissions, api = automationApi }: { per
           <h2>{item.name}</h2><p>{(item.scope?.allContent ? 'Todos os anúncios e publicações' : publication?.label) || (item.scope?.media ? `Publicação ${item.scope.media}` : 'Conteúdo ainda não configurado')}</p>
           <dl><div><dt>Palavras-chave</dt><dd>{item.keywords?.join(' · ') || 'Não configuradas'}</dd></div>
             <div><dt>Material</dt><dd>{item.material === 'context' ? 'Automático por criativo e assunto' : item.material === 'amh' ? 'AMH · Highlights' : item.material === 'amh-consultorio' ? 'AMH · No consultório' : 'Não configurado'}</dd></div>
-            <div><dt>Versão</dt><dd>{item.version ? `${item.version}${item.draft_changed ? ' · alterações em rascunho' : ''}` : 'Rascunho'}</dd></div></dl>
+            <div><dt>Versão em execução/publicada</dt><dd>{item.published_version !== undefined ? `Executando: ${item.running_version ? `v${item.running_version}` : 'nenhuma'} · Publicada: ${item.published_version ? `v${item.published_version}` : 'nenhuma'}${item.draft_changed ? ' · alterações em rascunho' : ''}` : item.version ? `${item.version}${item.draft_changed ? ' · alterações em rascunho' : ''}` : 'Rascunho'}</dd></div><div><dt>Última simulação</dt><dd>{item.last_simulation ? `${item.last_simulation.outcome === 'simulated_accepted' ? 'Caminho validado' : 'Confira o resultado'} · ${new Date(item.last_simulation.at).toLocaleString('pt-BR')}` : 'Nenhuma simulação registrada'}</dd></div></dl>
           <button onClick={() => setSelected(item.id)}>Abrir configuração <ArrowRight size={15} /></button>
         </article>;
       })}
