@@ -32,3 +32,11 @@ Backend PR/migration must precede this frontend. Preserve published v1 snapshots
 - [Canvas desktop](instagram-studio/canvas-desktop.png)
 - [Mobile viewport 390×844](instagram-studio/editor-mobile-390.png)
 - [Accessible discard confirmation](instagram-studio/descarte-acessivel.png)
+
+## Canvas refinement — 23 October 2026
+
+Ricardo requested a canvas-first layout, compact header and blocks, retractable properties, visible zoom icons, less instructional copy and the colors of this Evolution installation. The editor now uses the application's theme tokens (with the same sienna/ivory/charcoal fallbacks in the isolated preview). Properties start closed, open on block selection and can be closed from either the toolbar or inspector. Preview is also retractable. Dedicated Lucide controls provide zoom in/out, 100%, fit flow and focus selected block. Branch labels remain on output ports without being repeated on every edge. The local preview no longer adds a 24px outer frame.
+
+Verification: 28 targeted Vitest tests pass, including inspector open/close/selection; scoped ESLint, TypeScript and production build pass (existing large-chunk warning). Browser inspection was blocked by the computer-use URL policy, so no new screenshot or visual-browser approval is claimed. The older screenshots above precede this refinement.
+
+Working checkout: `/Users/ricardohenrique/Projetos/evo-crm/evo-ai-frontend-community`; branch `codex/instagram-visual-builder`; baseline `19be745`. This refinement is local and must be reviewed before merging or deploying. No production changes or sends were made. Next step: visual review at the existing local preview URL and PR review before integration into main.
