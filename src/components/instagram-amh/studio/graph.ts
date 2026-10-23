@@ -24,8 +24,13 @@ export function defaults(kind: BlockKind, account = ''): BlockData {
 }
 export function initialStudioGraph(account = ''): StudioGraph {
   const kinds: BlockKind[] = ['comment', 'scope', 'keyword', 'material', 'invitation', 'public_reply', 'like', 'confirmation', 'delivery', 'end'];
-  const nodes: Block[] = kinds.map((type, i) => ({ id: type, type, data: defaults(type, account), position: { x: i * 300, y: 80 } }));
-  nodes.push({ id: 'stop', type: 'end', data: { label: 'Sem envio' }, position: { x: 600, y: 460 } });
+  const nodes: Block[] = kinds.map((type, i) => ({
+    id: type,
+    type,
+    data: defaults(type, account),
+    position: { x: (i % 5) * 256 + 32, y: i < 5 ? 56 : 328 },
+  }));
+  nodes.push({ id: 'stop', type: 'end', data: { label: 'Sem envio' }, position: { x: 1312, y: 56 } });
   const edges: Edge[] = kinds.slice(0, -1).flatMap((source, i) => ports[source].map(port => ({ id: `${source}-${port}`, source, sourceHandle: port, target: ['no_match', 'blocked', 'failed'].includes(port) && !['like', 'public_reply'].includes(source) ? 'stop' : kinds[i + 1] })));
   return { schema_version: 2, nodes, edges };
 }
