@@ -52,6 +52,8 @@ export type Operations = {
     name: string;
     state: string;
     version: number | null;
+    published_version?: number | null;
+    running_version?: number | null;
     draft_changed: boolean;
     scope: { account?: string; ad?: string; media?: string; allContent?: boolean };
     material: string;

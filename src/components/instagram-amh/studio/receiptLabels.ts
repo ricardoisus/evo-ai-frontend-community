@@ -1,0 +1,8 @@
+export const receiptLabels: Record<string, string> = { accepted: 'Aceita pelo Instagram', passed: 'Concluída', sending: 'Reservada · aguarde conferência', pending: 'Pendente', awaiting_confirmation: 'Aguardando clique em Pode enviar', failed: 'Recusada', blocked: 'Bloqueada', uncertain: 'Resultado incerto · revisar', not_requested: 'Não solicitada', prompt_sending: 'Convite reservado · em envio', prompt_blocked: 'Convite bloqueado', prompt_failed: 'Convite recusado', prompt_uncertain: 'Convite com resultado incerto' };
+
+export function receiptReason(reason: string): string {
+  const labels: Record<string, string> = { provider_accepted: 'Aceite confirmado pelo Instagram', invitation_reserved: 'Convite reservado para envio', waiting_for_button_click: 'Aguardando clique em Pode enviar', confirmed_delivery_reserved: 'Entrega reservada após confirmação', rule_unavailable: 'Automação pausada, versão alterada ou envio indisponível', rule_paused_or_version_replaced: 'Automação pausada ou versão substituída', graph_result_unknown: 'Resultado incerto. Revise antes de qualquer reenvio.', transport_result_unknown: 'Não foi possível confirmar o resultado do envio.', reply_rate_limited: 'Limite temporário de respostas públicas atingido', like_gate_disabled: 'Curtida desabilitada nesta instalação', graph_ended_without_delivery: 'Caminho encerrado sem entrega' };
+  if (labels[reason]) return labels[reason];
+  if (/^provider_\d+$/.test(reason)) return `O Instagram recusou a solicitação (HTTP ${reason.slice(9)}).`;
+  return reason.includes('_') ? 'Confira a conexão e o resultado desta etapa antes de intervir.' : reason;
+}
