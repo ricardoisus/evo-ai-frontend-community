@@ -12,7 +12,7 @@ const page=await browser.newPage({viewport:{width:1440,height:900}});
 page.on('response',r=>{if(r.status()>=400) console.log('HTTP_ERROR',r.status(),new URL(r.url()).pathname);});
 
 page.on('pageerror',()=>console.log('PAGE_ERROR: navegador local; detalhes omitidos'));
-await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return; } } return route.continue(); });
+await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return route.abort().catch(() => {}); } } return route.continue(); });
 await page.addInitScript(() => localStorage.setItem('i18nextLng','pt-BR'));
 await page.goto(`${baseURL}/login`);
 await page.locator('input[type=email]').fill(login.email);
@@ -101,7 +101,7 @@ await page.route(endpoint, async route=>{
  if(route.request().method()!=='GET') return route.fallback();
  try {const response=await route.fetch();const body=await response.json();
  const clearOwners=value=>{if(!value||typeof value!=='object')return;if('owner' in value)value.owner=null;if('assignee' in value)value.assignee=null;for(const child of Object.values(value))clearOwners(child);};clearOwners(body);
- return await route.fulfill({response,json:body});}catch{return;}
+ return await route.fulfill({response,json:body});}catch{return route.abort().catch(() => {});}
 });
 await page.reload();await page.locator('.deal-card-shell').first().waitFor();await setPortuguese();
 await page.getByText('Sem responsável',{exact:true}).first().waitFor();
@@ -109,11 +109,11 @@ await page.screenshot({path:`${out}/u4-depois-sem-responsavel.png`});await page.
 // Empty pipeline with no stages is also local read substitution, no deletion.
 await page.route(endpoint, async route=>{
  if(route.request().method()!=='GET')return route.fallback();
- try {const response=await route.fetch();const body=await response.json();const empty=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value.stages))value.stages=[];for(const child of Object.values(value))empty(child);};empty(body);return await route.fulfill({response,json:body});}catch{return;}
+ try {const response=await route.fetch();const body=await response.json();const empty=value=>{if(!value||typeof value!=='object')return;if(Array.isArray(value.stages))value.stages=[];for(const child of Object.values(value))empty(child);};empty(body);return await route.fulfill({response,json:body});}catch{return route.abort().catch(() => {});}
 });
 globalThis.captureStep='no-stages';
 await page.reload();await page.getByRole('heading',{name:'Crie a primeira etapa',exact:true}).waitFor();await setPortuguese();
 await page.screenshot({path:`${out}/u4-depois-sem-etapas.png`});
 await page.unroute(endpoint);
 fs.writeFileSync(`${out}/u4-medicoes.json`,JSON.stringify({metrics,cachedStageCount:count,originFilter:true,singleClear:true,focusReturn:true,retry:true,reducedMotion:true,unassigned:true},null,2));
-await page.waitForTimeout(300);await browser.close();console.log('U4 verificado: toolbar, filtros, teclado, esqueleto, retry e sem responsável.');
+await page.waitForTimeout(300);await page.unrouteAll({behavior:'ignoreErrors'});await browser.close();console.log('U4 verificado: toolbar, filtros, teclado, esqueleto, retry e sem responsável.');

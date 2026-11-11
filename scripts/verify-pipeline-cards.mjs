@@ -12,7 +12,7 @@ const page=await browser.newPage({viewport:{width:1440,height:900}});
 page.on('response',r=>{if(r.status()>=400) console.log('HTTP_ERROR',r.status(),new URL(r.url()).pathname);});
 
 page.on('pageerror',()=>console.log('PAGE_ERROR: navegador local; detalhes omitidos'));
-await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return; } } return route.continue(); });
+await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return route.abort().catch(() => {}); } } return route.continue(); });
 await page.goto(`${baseURL}/login`);
 await page.locator('input[type=email]').fill(login.email);
 await page.locator('input[type=password]').fill(login.password);
@@ -119,4 +119,4 @@ await page.reload({waitUntil:'domcontentloaded'}); await page.waitForTimeout(150
 await page.locator('.deal-card-shell').first().waitFor(); await page.unroute(`**/api/v1/pipelines/${pipelineId}`);
 console.log('VERIFIED',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true}));
 fs.writeFileSync(out+'/u3-medicoes.json',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true},null,2));
-await browser.close();
+await page.unrouteAll({behavior:'ignoreErrors'});await browser.close();
