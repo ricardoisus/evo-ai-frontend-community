@@ -650,8 +650,8 @@
     "header": {
       "conversations": "Leads",
       "stages": "Etapas",
-      "totalValue": "Valor Total",
-      "addItem": "Adicionar Item",
+      "totalValue": "Valor total",
+      "addItem": "Adicionar negócio",
       "addConversation": "Adicionar Item",
       "editPipeline": "Editar Pipeline",
       "reorderStages": "Reordenar Etapas",
@@ -661,7 +661,7 @@
       "captureForms": "Formulários de Captura"
     },
     "stage": {
-      "addStage": "Adicionar Etapa",
+      "addStage": "Adicionar etapa",
       "addStageDescription": "Clique para criar uma nova etapa neste pipeline",
       "editStage": "Editar Etapa",
       "deleteStage": "Deletar Etapa",
@@ -686,7 +686,7 @@
       "system": "Sistema",
       "moveCard": "Mover cartão",
       "moveTo": "Mover para",
-      "addItemShort": "Adicionar item",
+      "addItemShort": "Adicionar negócio",
       "openConversation": "Abrir conversa"
     },
     "conversation": {
@@ -735,6 +735,17 @@
     "tasks": {
       "pending": "pendentes",
       "overdue": "atrasadas"
+    },
+    "board": {
+      "deals": "Negócios",
+      "origin": "Origem e campanha",
+      "loadError": "Não foi possível carregar o quadro",
+      "retry": "Tentar novamente",
+      "emptyStage": "Nenhum negócio nesta etapa",
+      "noResults": "Nenhum negócio com esses filtros",
+      "addDeal": "Adicionar negócio",
+      "noStagesTitle": "Crie a primeira etapa",
+      "noStagesDescription": "Organize os negócios conforme avançam no seu processo comercial."
     }
   },
   "tasks": {

@@ -1,0 +1,127 @@
+{
+  "measurements": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "dimensions": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "gap": 16,
+      "font": "14px",
+      "firstCardTop": 274.59375,
+      "bodyWidth": 1600,
+      "bodyZoom": "0.9",
+      "viewport": 1440,
+      "colors": {
+        "bg": "rgb(252, 250, 245)",
+        "text": "rgb(98, 93, 85)",
+        "title": "rgb(14, 14, 14)"
+      },
+      "ratios": {
+        "metadata": 6.259416374877372,
+        "title": 18.50644689563011
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "dimensions": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "gap": 16,
+      "font": "14px",
+      "firstCardTop": 274.59375,
+      "bodyWidth": 1600,
+      "bodyZoom": "0.9",
+      "viewport": 1440,
+      "colors": {
+        "bg": "rgb(28, 27, 26)",
+        "text": "rgb(184, 177, 167)",
+        "title": "rgb(242, 239, 232)"
+      },
+      "ratios": {
+        "metadata": 8.095336478927717,
+        "title": 14.976510830675215
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "dimensions": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "gap": 16,
+      "font": "14px",
+      "firstCardTop": 178.59375,
+      "bodyWidth": 433,
+      "bodyZoom": "0.9",
+      "viewport": 390,
+      "colors": {
+        "bg": "rgb(252, 250, 245)",
+        "text": "rgb(98, 93, 85)",
+        "title": "rgb(14, 14, 14)"
+      },
+      "ratios": {
+        "metadata": 6.259416374877372,
+        "title": 18.50644689563011
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "dimensions": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "gap": 16,
+      "font": "14px",
+      "firstCardTop": 178.59375,
+      "bodyWidth": 433,
+      "bodyZoom": "0.9",
+      "viewport": 390,
+      "colors": {
+        "bg": "rgb(28, 27, 26)",
+        "text": "rgb(184, 177, 167)",
+        "title": "rgb(242, 239, 232)"
+      },
+      "ratios": {
+        "metadata": 8.095336478927717,
+        "title": 14.976510830675215
+      }
+    }
+  ],
+  "scrollMetrics": {
+    "headerStayed": true,
+    "otherStayed": true,
+    "scrollTop": 150
+  },
+  "unzoomed": 304,
+  "persistence": true,
+  "errorRetainsDraft": true,
+  "focusReturn": true,
+  "moveRollback": true,
+  "keyboardMove": true
+}

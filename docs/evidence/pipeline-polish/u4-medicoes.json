@@ -1,0 +1,111 @@
+{
+  "metrics": [
+    {
+      "width": 1440,
+      "theme": "light",
+      "headerHeight": 118,
+      "firstCardTop": 274.59375,
+      "columns": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "kpiColor": "rgb(14, 14, 14)",
+      "ctaColor": "rgb(255, 249, 240)",
+      "ctaBackground": "rgb(180, 84, 23)",
+      "rootWidth": 1238.40625,
+      "searchWidth": 320,
+      "ctaContrast": 4.752371256832087,
+      "emptyContrast": {
+        "text": 5.245859966267981,
+        "link": 5.362937820926396
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "headerHeight": 118,
+      "firstCardTop": 274.59375,
+      "columns": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "kpiColor": "rgb(14, 14, 14)",
+      "ctaColor": "rgb(255, 249, 240)",
+      "ctaBackground": "rgb(180, 84, 23)",
+      "rootWidth": 1238.40625,
+      "searchWidth": 320,
+      "ctaContrast": 4.752371256832087,
+      "emptyContrast": {
+        "text": 8.671689266798476,
+        "link": 5.833952861672851
+      }
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "headerHeight": 54,
+      "firstCardTop": 178.59375,
+      "columns": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "kpiColor": "rgb(14, 14, 14)",
+      "ctaColor": "rgb(255, 249, 240)",
+      "ctaBackground": "rgb(180, 84, 23)",
+      "rootWidth": 390,
+      "searchWidth": 44,
+      "ctaContrast": 4.752371256832087,
+      "emptyContrast": {
+        "text": 5.245859966267981,
+        "link": 5.362937820926396
+      }
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "headerHeight": 54,
+      "firstCardTop": 178.59375,
+      "columns": [
+        304,
+        304,
+        304,
+        304,
+        304,
+        304,
+        304
+      ],
+      "kpiColor": "rgb(242, 239, 232)",
+      "ctaColor": "rgb(255, 249, 240)",
+      "ctaBackground": "rgb(180, 84, 23)",
+      "rootWidth": 390,
+      "searchWidth": 44,
+      "ctaContrast": 4.752371256832087,
+      "emptyContrast": {
+        "text": 8.671689266798476,
+        "link": 5.833952861672851
+      }
+    }
+  ],
+  "cachedStageCount": 6,
+  "originFilter": true,
+  "singleClear": true,
+  "focusReturn": true,
+  "retry": true,
+  "reducedMotion": true,
+  "unassigned": true
+}

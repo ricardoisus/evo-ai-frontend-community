@@ -1,3 +1,5 @@
+process.on('uncaughtException', () => { console.error('Falha no navegador local; detalhes HTTP omitidos.'); process.exit(1); });
+process.on('unhandledRejection', () => { console.error('Falha de verificação; detalhes HTTP omitidos.'); process.exit(1); });
 import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 // Runs against the isolated synthetic local stack. No production hosts are allowed.
@@ -8,9 +10,9 @@ const login=JSON.parse(fs.readFileSync(process.env.EVO_LOCAL_LOGIN_FILE,'utf8'))
 const browser=await chromium.launch({channel:'chrome',headless:true});
 const page=await browser.newPage({viewport:{width:1440,height:900}});
 page.on('response',r=>{if(r.status()>=400) console.log('HTTP_ERROR',r.status(),new URL(r.url()).pathname);});
-page.on('requestfailed',r=>console.log('FAILED',new URL(r.url()).pathname));
-page.on('pageerror',e=>console.log('PAGE_ERROR',e.message.slice(0,200)));
-await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { const response=await route.fetch(); return route.fulfill({response}); } return route.continue(); });
+
+page.on('pageerror',()=>console.log('PAGE_ERROR: navegador local; detalhes omitidos'));
+await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return; } } return route.continue(); });
 await page.goto(`${baseURL}/login`);
 await page.locator('input[type=email]').fill(login.email);
 await page.locator('input[type=password]').fill(login.password);
@@ -18,7 +20,14 @@ await page.locator('button[type=submit]').click();
 await page.waitForTimeout(1800);
 
 await page.goto(`${baseURL}/pipelines/${pipelineId}`);
-await page.locator('.kanban-column').first().waitFor();
+await page.locator('.deal-card-shell').first().waitFor();
+// Make reruns independent of the previous synthetic session's saved configuration.
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('button',{name:'Restaurar padrão',exact:true}).click();
+if(await page.getByRole('button',{name:'Salvar',exact:true}).isEnabled()) {
+  await page.getByRole('button',{name:'Salvar',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+} else await page.getByRole('button',{name:'Cancelar',exact:true}).click();
 const out=process.env.EVO_SCREENSHOT_DIR || 'tmp/pipeline-card-configuration'; fs.mkdirSync(out,{recursive:true});
 const measurements=[];
 function contrast(a,b) { const lum=c=>c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0); const values=[lum(a),lum(b)].sort((a,b)=>a-b);return (values[1]+.05)/(values[0]+.05); }
@@ -107,7 +116,7 @@ const unzoomed=await page.locator('.kanban-column').first().evaluate(e=>e.getBou
 if(Math.abs(unzoomed-304)>1) throw new Error('unzoomed column width');
 await page.route(`**/api/v1/pipelines/${pipelineId}`,async route=>{if(route.request().method()==='GET') await new Promise(resolve=>setTimeout(resolve,1200));await route.fallback();});
 await page.reload({waitUntil:'domcontentloaded'}); await page.waitForTimeout(150); await page.screenshot({path:`${out}/u3-carregando.png`});
-await page.locator('.kanban-column').first().waitFor(); await page.unroute(`**/api/v1/pipelines/${pipelineId}`);
+await page.locator('.deal-card-shell').first().waitFor(); await page.unroute(`**/api/v1/pipelines/${pipelineId}`);
 console.log('VERIFIED',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true}));
 fs.writeFileSync(out+'/u3-medicoes.json',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true},null,2));
 await browser.close();
