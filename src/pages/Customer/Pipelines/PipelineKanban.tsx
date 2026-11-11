@@ -104,6 +104,7 @@ export default function PipelineKanban() {
   const labelFilter = searchParams.get('label') ?? '';
   const priorityFilter = searchParams.get('priority') ?? '';
   const originFilter = searchParams.get('origin') ?? '';
+  const originLower = originFilter.toLowerCase();
   // Período preset bucket ('today' | '7d' | '30d' | 'month'); drives dateFrom/dateTo.
   const periodFilter = searchParams.get('period') ?? '';
 
@@ -409,11 +410,11 @@ export default function PipelineKanban() {
           matchesDateRange &&
           matchesLabel &&
           matchesPriority &&
-          (!originFilter || [item.channel_origin?.channel, item.channel_origin?.origin, ...['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(key => item.custom_fields?.[key])].some(value => String(value ?? '').toLowerCase().includes(originFilter.toLowerCase())))
+          (!originFilter || [item.channel_origin?.channel, item.channel_origin?.origin, ...['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(key => item.custom_fields?.[key])].some(value => String(value ?? '').toLowerCase().includes(originLower)))
         );
       });
     },
-    [searchQuery, assigneeFilter, statusFilter, dateFrom, dateTo, labelFilter, priorityFilter, originFilter],
+    [searchQuery, assigneeFilter, statusFilter, dateFrom, dateTo, labelFilter, priorityFilter, originFilter, originLower],
   );
 
   const hasActiveFilters =
@@ -1067,6 +1068,7 @@ export default function PipelineKanban() {
             >
               {/* Stage Columns */}
               {stages.map((stage: PipelineStage) => {
+                const moveTargets = stages.filter(target => target.id !== stage.id);
                 const stageItems = filteredItemsByStage.get(stage.id) || [];
                 const stageSum = stageTotal(stageItems);
                 return (
@@ -1128,7 +1130,6 @@ export default function PipelineKanban() {
                       onDrop={e => handleDrop(e, stage.id)}
                     >
                       {stageItems.map(item => {
-                        const moveTargets = stages.filter(s => s.id !== item.stage_id);
                         return (
                         <div
                           key={item.id}

@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { CardConfiguration, CardFieldDefinition, PipelineItem } from '@/types/analytics/pipelines';
 import { getDealCardPresentation } from './dealCardPresentation';
@@ -6,7 +7,8 @@ import { dateValue, fieldText, formatDate, money } from './cardConfiguration';
 export default function ConfiguredDealCard({ item, configuration, definitions, preview = false }: { item: PipelineItem; configuration: CardConfiguration; definitions: CardFieldDefinition[]; preview?: boolean }) {
   const location = useLocation();
   const card = getDealCardPresentation(item);
-  const enabled = configuration.fields.filter(field => field.visible && definitions.some(definition => definition.id === field.id));
+  const definitionMap = useMemo(() => new Map(definitions.map(field => [field.id, field])), [definitions]);
+  const enabled = configuration.fields.filter(field => field.visible && definitionMap.has(field.id));
   const href = `/pipelines/${item.pipeline_id}/deals/${item.id}`;
   const date = dateValue(item.entered_at);
   const age = date ? Math.max(0, Math.floor((Date.now() - date.getTime()) / 86400000)) : null;
@@ -29,7 +31,7 @@ export default function ConfiguredDealCard({ item, configuration, definitions, p
       case 'channel_origin': return [item.channel_origin?.channel, item.channel_origin?.origin].filter(Boolean).join(' · ') || 'Não informado';
       case 'utm': return <details><summary>{['utm_source', 'utm_medium', 'utm_campaign'].map(key => fieldText(item.custom_fields?.[key])).join(' / ')}</summary>{['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(key => <div key={key}>{key}: {fieldText(item.custom_fields?.[key])}</div>)}</details>;
       default: {
-        const definition = definitions.find(field => field.id === id);
+        const definition = definitionMap.get(id);
         const [source, ...parts] = id.split(':');
         const key = parts.join(':');
         return <span><span className="deal-field-label">{definition?.label}: </span>{fieldText(source === 'contact_attribute' ? item.primary_contact?.custom_attributes?.[key] : item.custom_fields?.[key], definition?.type)}</span>;
