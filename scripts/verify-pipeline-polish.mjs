@@ -22,6 +22,13 @@ await page.waitForTimeout(1800);
 
 await page.goto(`${baseURL}/pipelines/${pipelineId}`);
 await page.locator('.deal-card-shell').first().waitFor();
+// Make reruns independent of the previous synthetic session's saved configuration.
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('button',{name:'Restaurar padrão',exact:true}).click();
+if(await page.getByRole('button',{name:'Salvar',exact:true}).isEnabled()) {
+  await page.getByRole('button',{name:'Salvar',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+} else await page.getByRole('button',{name:'Cancelar',exact:true}).click();
 const out=process.env.EVO_SCREENSHOT_DIR || 'tmp/pipeline-card-configuration'; fs.mkdirSync(out,{recursive:true});
 
 
