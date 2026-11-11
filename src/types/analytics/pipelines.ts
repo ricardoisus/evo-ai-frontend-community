@@ -1,3 +1,10 @@
+export interface CardFieldDefinition { id: string; label: string; type: string; source: string }
+export interface CardConfiguration {
+  version: 1;
+  density: 'comfortable' | 'compact';
+  fields: { id: string; visible: boolean }[];
+}
+
 import type { PaginatedResponse, StandardResponse, PaginationMeta } from '@/types/core';
 import type { Contact } from '@/types/contacts';
 
@@ -117,6 +124,9 @@ export interface PipelineStage {
 }
 
 export interface Pipeline {
+  card_configuration?: CardConfiguration | Record<string, never>;
+  card_configuration_revision?: number;
+  card_field_definitions?: CardFieldDefinition[];
   id: string;
   name: string;
   description?: string;
@@ -192,6 +202,8 @@ export interface CreatePipelineData {
 }
 
 export interface UpdatePipelineData extends Partial<CreatePipelineData> {
+  card_configuration?: CardConfiguration;
+  card_configuration_revision?: number;
   id?: string;
   team_ids?: string[];
   custom_fields?: Record<string, unknown> & {
@@ -215,6 +227,9 @@ export interface PipelineStats {
 }
 
 export interface PipelineItem {
+  channel_origin?: { channel?: string | null; origin?: string | null; conversation_id?: string | null };
+  last_activity?: { occurred_at?: string | null; summary: string } | null;
+  next_task?: { id: string; title: string; due_at?: string | null; status: string } | null;
   id: string;
   deal_id?: string;
   title?: string;

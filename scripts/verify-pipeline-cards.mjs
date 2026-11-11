@@ -1,0 +1,122 @@
+process.on('uncaughtException', () => { console.error('Falha no navegador local; detalhes HTTP omitidos.'); process.exit(1); });
+process.on('unhandledRejection', () => { console.error('Falha de verificação; detalhes HTTP omitidos.'); process.exit(1); });
+import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+// Runs against the isolated synthetic local stack. No production hosts are allowed.
+const baseURL=process.env.EVO_LOCAL_BASE_URL || 'http://127.0.0.1:5174';
+const pipelineId=process.env.EVO_LOCAL_PIPELINE_ID;
+if(!['127.0.0.1','localhost'].includes(new URL(baseURL).hostname)||!pipelineId||!process.env.EVO_LOCAL_LOGIN_FILE) throw new Error('Use a local URL, EVO_LOCAL_PIPELINE_ID and EVO_LOCAL_LOGIN_FILE');
+const login=JSON.parse(fs.readFileSync(process.env.EVO_LOCAL_LOGIN_FILE,'utf8'));
+const browser=await chromium.launch({channel:'chrome',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:900}});
+page.on('response',r=>{if(r.status()>=400) console.log('HTTP_ERROR',r.status(),new URL(r.url()).pathname);});
+
+page.on('pageerror',()=>console.log('PAGE_ERROR: navegador local; detalhes omitidos'));
+await page.route('**/*', async route=>{const url=new URL(route.request().url()); if(!['127.0.0.1','localhost'].includes(url.hostname)&&url.protocol!=='data:') return route.abort(); if(['3010','3011'].includes(url.port)) { try { const response=await route.fetch(); return await route.fulfill({response}); } catch { return route.abort().catch(() => {}); } } return route.continue(); });
+await page.goto(`${baseURL}/login`);
+await page.locator('input[type=email]').fill(login.email);
+await page.locator('input[type=password]').fill(login.password);
+await page.locator('button[type=submit]').click();
+await page.waitForTimeout(1800);
+
+await page.goto(`${baseURL}/pipelines/${pipelineId}`);
+await page.locator('.deal-card-shell').first().waitFor();
+// Make reruns independent of the previous synthetic session's saved configuration.
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('button',{name:'Restaurar padrão',exact:true}).click();
+if(await page.getByRole('button',{name:'Salvar',exact:true}).isEnabled()) {
+  await page.getByRole('button',{name:'Salvar',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+} else await page.getByRole('button',{name:'Cancelar',exact:true}).click();
+const out=process.env.EVO_SCREENSHOT_DIR || 'tmp/pipeline-card-configuration'; fs.mkdirSync(out,{recursive:true});
+const measurements=[];
+function contrast(a,b) { const lum=c=>c.match(/[\d.]+/g).slice(0,3).map(Number).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0); const values=[lum(a),lum(b)].sort((a,b)=>a-b);return (values[1]+.05)/(values[0]+.05); }
+for(const width of [1440,390]) for(const theme of ['light','dark']) {
+  await page.setViewportSize({width,height:width===390?844:900});
+  await page.evaluate(theme=>{document.documentElement.classList.toggle('dark',theme==='dark');},theme);
+  await page.waitForTimeout(250);
+  const dimensions=await page.locator('.kanban-column').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().width));
+  if(dimensions.some(w=>Math.abs(w-304)>1)) throw new Error('column width');
+  const metrics=await page.evaluate(()=>{const column=document.querySelector('.kanban-column'),next=column.nextElementSibling,card=document.querySelector('.deal-title');return {gap:next.getBoundingClientRect().left-column.getBoundingClientRect().right,font:getComputedStyle(card).fontSize,firstCardTop:card.closest('.deal-card-shell').getBoundingClientRect().top,bodyWidth:document.body.scrollWidth,bodyZoom:getComputedStyle(document.body).zoom,viewport:innerWidth};});
+  const colors=await page.evaluate(()=>{const shell=document.querySelector('.deal-card-shell'),card=document.querySelector('.configured-deal-card');return {bg:getComputedStyle(shell).backgroundColor,text:getComputedStyle(card).color,title:getComputedStyle(document.querySelector('.deal-title')).color};});
+  const ratios={metadata:contrast(colors.text,colors.bg),title:contrast(colors.title,colors.bg)};
+  if(Object.values(ratios).some(r=>r<4.5)) throw new Error('contrast');
+  if(width===390&&metrics.firstCardTop>180) throw new Error('mobile card position');
+  measurements.push({width,theme,dimensions,...metrics,colors,ratios});
+  await page.screenshot({path:`${out}/u3-quadro-${width}-${theme}.png`});
+  await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+  const dialog=page.getByRole('dialog');await dialog.waitFor(); await page.waitForTimeout(350);
+  const rect=await dialog.evaluate(e=>({width:e.getBoundingClientRect().width,right:e.getBoundingClientRect().right,top:e.getBoundingClientRect().top,height:e.getBoundingClientRect().height}));
+  if(Math.abs(rect.top)>1||Math.abs(rect.right-width)>1) throw new Error('dialog bounds '+JSON.stringify(rect));
+  await page.screenshot({path:`${out}/u3-painel-${width}-${theme}.png`});
+  await page.getByRole('button',{name:'Cancelar',exact:true}).click(); await page.waitForTimeout(100);
+  if(await page.evaluate(()=>document.activeElement?.getAttribute('aria-label'))!=='Personalizar cartões') throw new Error('focus return');
+}
+await page.setViewportSize({width:1440,height:900});
+await page.evaluate(()=>document.documentElement.classList.remove('dark'));
+const extreme=await page.locator('.deal-title').first().evaluate(e=>{const original=e.textContent;e.textContent='W'.repeat(200);return original;});
+if(Math.abs(await page.locator('.kanban-column').first().evaluate(e=>e.getBoundingClientRect().width)-304)>1) throw new Error('extreme title width');
+await page.screenshot({path:`${out}/u3-titulo-extremo.png`});
+await page.locator('.deal-title').first().evaluate((e,text)=>{e.textContent=text;},extreme);
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('radio',{name:'Compacta',exact:true}).click();
+await page.getByRole('checkbox',{name:'Valor',exact:true}).uncheck();
+await page.screenshot({path:`${out}/u3-previa-compacta.png`});
+let saved=page.waitForResponse(r=>r.request().method()==='PATCH'&&new URL(r.url()).pathname.endsWith(pipelineId));
+await page.getByRole('button',{name:'Salvar',exact:true}).click();
+if((await saved).status()!==200) throw new Error('save failed');
+await page.getByRole('dialog').waitFor({state:'hidden'});
+await page.reload();await page.locator('.configured-deal-card.compact').first().waitFor();
+if(await page.locator('.deal-value').count()) throw new Error('visibility not persisted');
+await page.screenshot({path:`${out}/u3-compacto-persistido.png`});
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('button',{name:'Restaurar padrão',exact:true}).click();
+for(const checkbox of await page.getByRole('checkbox').all()) if(await checkbox.isEnabled()) await checkbox.check();
+await page.getByRole('button',{name:'Salvar',exact:true}).click();
+await page.getByRole('dialog').waitFor({state:'hidden'});
+await page.screenshot({path:`${out}/u3-todos-campos.png`});
+await page.getByRole('button',{name:'Personalizar cartões',exact:true}).click();
+await page.getByRole('button',{name:'Restaurar padrão',exact:true}).click();
+await page.route(`**/api/v1/pipelines/${pipelineId}`,async route=>route.request().method()==='PATCH'?route.fulfill({status:422,json:{message:'Falha sintética'}}):route.fallback());
+await page.getByRole('button',{name:'Salvar',exact:true}).click();
+await page.getByRole('alert').filter({hasText:'Não foi possível salvar'}).waitFor();
+await page.screenshot({path:`${out}/u3-erro-salvar.png`});
+await page.unroute(`**/api/v1/pipelines/${pipelineId}`);
+await page.getByRole('button',{name:'Salvar',exact:true}).click();
+await page.getByRole('dialog').waitFor({state:'hidden'});
+// The card keeps its stage when a failed move rolls back, including a keyboard menu action.
+const source=page.locator('.deal-card-shell').first();
+const sourceId=await source.getAttribute('data-deal-id');
+const originalStage=await source.locator('xpath=ancestor::section').getAttribute('data-stage-id');
+await page.route('**/move_to_stage',route=>route.fulfill({status:503,json:{message:'Falha sintética'}}));
+await source.getByRole('button',{name:/move card|mover cartão/i}).click();
+await page.getByRole('menuitem').filter({hasText:'Em qualificação'}).click();
+await page.getByRole('status').filter({hasText:'Não foi possível mover'}).first().waitFor();
+if(await page.locator(`[data-deal-id="${sourceId}"]`).locator('xpath=ancestor::section').getAttribute('data-stage-id')!==originalStage) throw new Error('move rollback');
+await page.unroute('**/move_to_stage');
+const originalName=await page.locator(`[data-stage-id="${originalStage}"] h3`).innerText();
+const targetName=await page.locator('.kanban-column h3').nth(1).innerText();
+async function moveViaMenu(name) {
+  await page.locator(`[data-deal-id="${sourceId}"]`).getByRole('button',{name:/move card|mover cartão/i}).click();
+  const request=page.waitForResponse(r=>new URL(r.url()).pathname.endsWith('/move_to_stage'));
+  await page.getByRole('menuitem',{name,exact:true}).click();
+  if((await request).status()!==200) throw new Error('keyboard move');
+  await page.waitForTimeout(500);
+}
+await moveViaMenu(targetName); await moveViaMenu(originalName);
+await page.locator(`[data-stage-id="${originalStage}"] .kanban-dropzone`).evaluate(e=>{e.scrollTop=0;});
+const handle=page.locator(`[data-deal-id="${sourceId}"] .deal-move-handle`);await handle.scrollIntoViewIfNeeded();
+const bounds=await handle.boundingBox();await handle.hover();await page.mouse.down();await page.mouse.move(bounds.x+50,bounds.y+40,{steps:8});await page.waitForTimeout(150);
+if(!(await page.locator('.deal-card-shell.is-dragging').count())) throw new Error('drag placeholder');
+await page.screenshot({path:`${out}/u3-arrastando.png`});await page.keyboard.press('Escape');await page.mouse.up();
+const scrollMetrics=await page.evaluate(()=>{const z=document.querySelector('.kanban-dropzone'),header=z.previousElementSibling,other=document.querySelectorAll('.kanban-dropzone')[1];const top=header.getBoundingClientRect().top,otherTop=other.scrollTop;z.scrollTop=150;return {headerStayed:top===header.getBoundingClientRect().top,otherStayed:other.scrollTop===otherTop,scrollTop:z.scrollTop};});
+if(!scrollMetrics.headerStayed||!scrollMetrics.otherStayed||!scrollMetrics.scrollTop) throw new Error('vertical scroll');
+await page.evaluate(()=>{document.body.classList.remove('authenticated-panel-density');});
+const unzoomed=await page.locator('.kanban-column').first().evaluate(e=>e.getBoundingClientRect().width);
+if(Math.abs(unzoomed-304)>1) throw new Error('unzoomed column width');
+await page.route(`**/api/v1/pipelines/${pipelineId}`,async route=>{if(route.request().method()==='GET') await new Promise(resolve=>setTimeout(resolve,1200));await route.fallback();});
+await page.reload({waitUntil:'domcontentloaded'}); await page.waitForTimeout(150); await page.screenshot({path:`${out}/u3-carregando.png`});
+await page.locator('.deal-card-shell').first().waitFor(); await page.unroute(`**/api/v1/pipelines/${pipelineId}`);
+console.log('VERIFIED',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true}));
+fs.writeFileSync(out+'/u3-medicoes.json',JSON.stringify({measurements,scrollMetrics,unzoomed,persistence:true,errorRetainsDraft:true,focusReturn:true,moveRollback:true,keyboardMove:true},null,2));
+await page.unrouteAll({behavior:'ignoreErrors'});await browser.close();

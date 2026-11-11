@@ -24,7 +24,6 @@ import {
   User,
   CalendarClock,
   AlertCircle,
-  Clock,
   Search,
   X,
   ChevronDown,
@@ -35,9 +34,9 @@ import {
   Star,
   Filter,
   ArrowLeftRight,
-  GitBranch,
   MessageSquare,
   FileText,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 import { pipelinesService } from '@/services/pipelines';
@@ -59,7 +58,11 @@ import DeletePipelineModal from '@/components/pipelines/DeletePipelineModal';
 import ReorderStagesModal from '@/components/pipelines/ReorderStagesModal';
 import PipelineCaptureFormsModal from '@/components/pipelines/PipelineCaptureFormsModal';
 import { ScheduleActionModal } from '@/components/scheduledActions';
-import { getDealCardPresentation } from './dealCardPresentation';
+import ConfiguredDealCard from './ConfiguredDealCard';
+import CardConfigurationPanel from './CardConfigurationPanel';
+import PipelineBoardLoading from './PipelineBoardLoading';
+import { rememberStageCount } from './pipelineStageCount';
+import { configurationFor, nativeFields, stageTotal } from './cardConfiguration';
 
 // Status/priority badge styles use the design system's semantic Tailwind classes
 // (same palette Chat/Contacts use), with dark-mode variants — NOT arbitrary hex.
@@ -72,15 +75,6 @@ const STATUS_HEX: Record<string, string> = {
   snoozed: '#8B5CF6',
 };
 const statusColorHex = (status?: string) => STATUS_HEX[status ?? ''] ?? '#9aa3b2';
-
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  open: 'bg-primary/10 text-primary',
-  pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  resolved: 'bg-muted text-muted-foreground',
-  snoozed: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
-};
-const statusBadgeClass = (status?: string) =>
-  STATUS_BADGE_CLASS[status ?? ''] ?? 'bg-muted text-muted-foreground';
 
 // Chatwoot priority → mockup 3-bucket key.
 const priorityBucket = (priority?: string | null): string => {
@@ -95,12 +89,6 @@ const PRIORITY_HEX: Record<string, string> = {
   media: '#F59E0B',
   baixa: '#359558',
 };
-const PRIORITY_BADGE_CLASS: Record<string, string> = {
-  alta: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  media: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  baixa: 'bg-primary/10 text-primary',
-};
-
 export default function PipelineKanban() {
   const { t } = useLanguage('pipelines');
   const { pipelineId } = useParams<{ pipelineId: string }>();
@@ -115,6 +103,8 @@ export default function PipelineKanban() {
   const dateTo = searchParams.get('dateTo') ?? '';
   const labelFilter = searchParams.get('label') ?? '';
   const priorityFilter = searchParams.get('priority') ?? '';
+  const originFilter = searchParams.get('origin') ?? '';
+  const originLower = originFilter.toLowerCase();
   // Período preset bucket ('today' | '7d' | '30d' | 'month'); drives dateFrom/dateTo.
   const periodFilter = searchParams.get('period') ?? '';
 
@@ -147,6 +137,14 @@ export default function PipelineKanban() {
   }, [fetchAgents]);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [personalizingCards, setPersonalizingCards] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const personalizeButtonRef = useRef<HTMLButtonElement>(null);
+  const movingIds = useRef(new Set<string>());
+  const touchDrag = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number; active: boolean } | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [moveAnnouncement, setMoveAnnouncement] = useState('');
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [allPipelines, setAllPipelines] = useState<Pipeline[]>([]);
@@ -184,23 +182,24 @@ export default function PipelineKanban() {
     selectedConversationForSchedule?.contact?.id;
 
   // Load pipeline data
-  const loadPipelineData = useCallback(async () => {
+  const loadPipelineData = useCallback(async (background = false) => {
     if (!pipelineId) return;
 
-    setLoading(true);
+    if (!background) setLoading(true);
+    setLoadError(false);
     try {
       // Load pipeline with all data (stages, items, tasks_info, services_info)
       const pipelineData = await pipelinesService.getPipeline(pipelineId);
 
       setPipeline(pipelineData);
       setStages(pipelineData.stages || []);
-    } catch (error) {
-      console.error('Error loading pipeline data:', error);
-      toast.error(t('kanban.messages.loadDataError'));
+      rememberStageCount(pipelineId, pipelineData.stages?.length ?? 0);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [pipelineId, t]);
+  }, [pipelineId]);
 
   // Load all pipelines for selector
   const loadAllPipelines = useCallback(async () => {
@@ -243,50 +242,24 @@ export default function PipelineKanban() {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    const board = boardScrollRef.current;
+    if (board) {
+      const rect = board.getBoundingClientRect();
+      const delta = e.clientX < rect.left + 32 ? -16 : e.clientX > rect.right - 32 ? 16 : 0;
+      if (delta) board.scrollLeft += delta;
+    }
   };
 
   const handleDrop = async (e: React.DragEvent, targetStageId: string) => {
     e.preventDefault();
-
-    if (!draggedItem) return;
-
-    // Don't move if dropping on same stage
-    if (draggedItem.stage_id === targetStageId) {
-      setDraggedItem(null);
-      return;
-    }
-
-    // Capture before async operations
-    const movedItem = draggedItem;
-    const willBeHidden = hasActiveFilters && filterItems([movedItem]).length === 0;
-
-    try {
-      await pipelinesService.moveItem({
-        item_id: movedItem.id,
-        pipeline_id: pipelineId!,
-        from_stage_id: movedItem.stage_id,
-        to_stage_id: targetStageId,
-      });
-
-      // Reload pipeline data to reflect changes
-      await loadPipelineData();
-      toast.success(t('kanban.messages.itemMoved'));
-      if (willBeHidden) {
-        toast.info(t('kanban.messages.itemHiddenByFilter'), {
-          action: { label: t('kanban.search.clearFilters'), onClick: clearFilters },
-        });
-      }
-    } catch (error) {
-      console.error('Error moving item:', error);
-      toast.error(t('kanban.messages.itemMoveError'));
-    } finally {
-      setDraggedItem(null);
-      isDraggingRef.current = false;
-      suppressClickUntilRef.current = Date.now() + 200;
-    }
+    const item = draggedItem;
+    setDraggedItem(null); setDropTarget(null); isDraggingRef.current = false;
+    if (item) await moveItemToStage(item, targetStageId);
   };
 
   const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDropTarget(null);
     isDraggingRef.current = false;
     suppressClickUntilRef.current = Date.now() + 200;
   };
@@ -302,6 +275,7 @@ export default function PipelineKanban() {
       label?: string;
       priority?: string;
       period?: string;
+      origin?: string;
     }) => {
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
@@ -314,6 +288,7 @@ export default function PipelineKanban() {
           'label',
           'priority',
           'period',
+          'origin',
         ] as const;
         for (const key of keys) {
           if (key in updates) {
@@ -360,7 +335,7 @@ export default function PipelineKanban() {
     setSearchInput('');
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
-      ['search', 'assignee', 'status', 'dateFrom', 'dateTo', 'label', 'priority', 'period'].forEach(
+      ['search', 'assignee', 'status', 'dateFrom', 'dateTo', 'label', 'priority', 'period', 'origin'].forEach(
         k => next.delete(k),
       );
       return next;
@@ -402,6 +377,7 @@ export default function PipelineKanban() {
       return items.filter(item => {
         const matchesSearch =
           !q ||
+          item.title?.toLowerCase().includes(q) ||
           item.contact?.name?.toLowerCase().includes(q) ||
           item.contact?.phone_number?.includes(q) ||
           item.contact?.email?.toLowerCase().includes(q) ||
@@ -433,11 +409,12 @@ export default function PipelineKanban() {
           matchesStatus &&
           matchesDateRange &&
           matchesLabel &&
-          matchesPriority
+          matchesPriority &&
+          (!originFilter || [item.channel_origin?.channel, item.channel_origin?.origin, ...['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].map(key => item.custom_fields?.[key])].some(value => String(value ?? '').toLowerCase().includes(originLower)))
         );
       });
     },
-    [searchQuery, assigneeFilter, statusFilter, dateFrom, dateTo, labelFilter, priorityFilter],
+    [searchQuery, assigneeFilter, statusFilter, dateFrom, dateTo, labelFilter, priorityFilter, originFilter, originLower],
   );
 
   const hasActiveFilters =
@@ -447,7 +424,7 @@ export default function PipelineKanban() {
     dateFrom !== '' ||
     dateTo !== '' ||
     labelFilter !== '' ||
-    priorityFilter !== '';
+    priorityFilter !== '' || originFilter !== '';
 
   // Number of active filters shown on the "Filtros" chip badge (search excluded — it
   // has its own box). Date range counts as one regardless of period vs raw dates.
@@ -455,7 +432,7 @@ export default function PipelineKanban() {
     (assigneeFilter ? 1 : 0) +
     (statusFilter ? 1 : 0) +
     (dateFrom || dateTo ? 1 : 0) +
-    (priorityFilter ? 1 : 0);
+    (priorityFilter ? 1 : 0) + (originFilter ? 1 : 0) + (labelFilter ? 1 : 0);
 
   // Consolidated "Filtros" popover (mockup) + which accordion section is expanded.
   const [filtersPopoverOpen, setFiltersPopoverOpen] = useState(false);
@@ -475,61 +452,32 @@ export default function PipelineKanban() {
     [filteredItemsByStage],
   );
 
-  const stagesWithResults = useMemo(
-    () => Array.from(filteredItemsByStage.values()).filter(items => items.length > 0).length,
-    [filteredItemsByStage],
-  );
-
   const totalItemCount = useMemo(
     () => stages.reduce((total, stage) => total + (stage.items?.length || 0), 0),
     [stages],
   );
 
-  // Defined pipeline attribute display-names (from custom_fields.attributes keys +
-  // attribute_definitions). Names only — there is no per-pipeline filled value.
-  const pipelineAttributeNames = useMemo(() => {
-    const cf = pipeline?.custom_fields as
-      | {
-          attributes?: string[];
-          attribute_definitions?: Record<string, { attribute_display_name?: string }>;
-        }
-      | undefined;
-    const keys = cf?.attributes ?? [];
-    const defs = cf?.attribute_definitions ?? {};
-    return keys.map(k => defs[k]?.attribute_display_name || k);
-  }, [pipeline]);
-
-
-  // Per-column total: sum of the stage's cards' value. item.value === services_info
-  // .total_value server-side (both = services_total_value); guard undefined with ?? 0.
-  const calculateStageTotal = (items: PipelineItem[] = []) => {
-    return items.reduce((total, item) => total + (item.value ?? item.services_info?.total_value ?? 0), 0);
-  };
-
-  // Format currency
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
   // Move a card to a target stage from the card menu (mirrors the drag-and-drop
   // moveItem path; both call pipelinesService.moveItem then reload).
   const moveItemToStage = async (item: PipelineItem, targetStageId: string) => {
-    if (!pipelineId || item.stage_id === targetStageId) return;
+    if (!pipelineId || item.stage_id === targetStageId || movingIds.current.size > 0) return;
+    movingIds.current.add(item.id);
+    const previous = stages;
+    setStages(current => current.map(stage => ({ ...stage, items: stage.id === targetStageId
+      ? [...(stage.items || []), { ...item, stage_id: targetStageId }]
+      : (stage.items || []).filter(entry => entry.id !== item.id) })));
     try {
-      await pipelinesService.moveItem({
-        item_id: item.id,
-        pipeline_id: pipelineId,
-        from_stage_id: item.stage_id,
-        to_stage_id: targetStageId,
-      });
-      await loadPipelineData();
+      await pipelinesService.moveItem({ item_id: item.id, pipeline_id: pipelineId, from_stage_id: item.stage_id, to_stage_id: targetStageId });
+      await loadPipelineData(true);
+      setMoveAnnouncement(`Negócio movido para ${stages.find(stage => stage.id === targetStageId)?.name || 'outra etapa'}`);
       toast.success(t('kanban.messages.itemMoved'));
-    } catch (error) {
-      console.error('Error moving item:', error);
-      toast.error(t('kanban.messages.itemMoveError'));
+    } catch {
+      setStages(previous);
+      setMoveAnnouncement('Não foi possível mover. Tente novamente');
+      toast.error('Não foi possível mover. Tente novamente');
+    } finally {
+      movingIds.current.delete(item.id);
+      requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(`[data-deal-id="${item.id}"] .deal-move-handle`)?.focus());
     }
   };
 
@@ -734,37 +682,35 @@ export default function PipelineKanban() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  if (loading) return <PipelineBoardLoading pipelineId={pipelineId} />;
+  if (!pipeline || loadError) return (
+    <div className="pipeline-board-root board-page-state" role="alert">
+      <span className="board-state-icon board-state-error"><AlertCircle size={20} /></span>
+      <h1>{t('kanban.board.loadError', { defaultValue: 'Não foi possível carregar o quadro' })}</h1>
+      <Button variant="outline" onClick={() => loadPipelineData()}>{t('kanban.board.retry', { defaultValue: 'Tentar novamente' })}</Button>
+    </div>
+  );
 
   return (
-    <div className="flex w-full h-full min-w-0 overflow-hidden">
+    <div className={`pipeline-board-root flex w-full h-full min-w-0 overflow-hidden ${personalizingCards ? "is-personalizing" : ""}`} onKeyDown={event => { if (event.key === "Escape") { setDraggedItem(null); setDropTarget(null); isDraggingRef.current = false; } }}>
+      <span className="sr-only" role="status" aria-live="polite">{moveAnnouncement}</span>
+      {personalizingCards && pipeline ? <CardConfigurationPanel pipeline={pipeline} onClose={() => { setPersonalizingCards(false); requestAnimationFrame(() => personalizeButtonRef.current?.focus()); }} onSaved={saved => { setPipeline(current => current ? { ...current, card_configuration: saved.card_configuration, card_configuration_revision: saved.card_configuration_revision } : current); toast.success("Cartões atualizados para a equipe"); }} /> : null}
       <div className="flex-1 h-full flex flex-col bg-muted/30 min-w-0">
         {/* Header */}
         <div className="flex-shrink-0 bg-background border-b border-border shadow-sm">
           <div className="px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between lg:py-3">
+            <div className="kanban-header-summary flex flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between lg:py-3">
               {/* Navigation and Pipeline Info */}
               <div className="flex items-center gap-3 min-w-0">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => navigate('/pipelines')}
-                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Voltar aos pipelines" className="text-muted-foreground hover:text-foreground"
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
 
-                {/* Pipeline identity: themed icon tile + name (with a switch-pipeline
-                    dropdown arrow) + description + badges + edit pencil. */}
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
-                  <GitBranch className="w-[19px] h-[19px]" />
-                </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {pipeline?.visibility === 'private' && (
@@ -777,7 +723,7 @@ export default function PipelineKanban() {
                           type="button"
                           className="flex items-center gap-1 min-w-0 rounded-md hover:bg-muted px-1 -mx-1 transition-colors"
                         >
-                          <h1 className="text-base font-bold text-foreground truncate">
+                          <h1 title={pipeline?.name} className="kanban-title text-foreground truncate">
                             {pipeline?.name}
                           </h1>
                           <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -788,7 +734,7 @@ export default function PipelineKanban() {
                           <DropdownMenuItem
                             key={p.id}
                             onClick={() => handlePipelineChange(p.id)}
-                            className={p.id === pipeline?.id ? 'bg-primary/10 text-primary' : ''}
+                            className={p.id === pipeline?.id ? 'bg-primary/10 text-[var(--primary-text)]' : ''}
                           >
                             {p.visibility === 'private' && (
                               <Lock className="h-3.5 w-3.5 mr-2 text-muted-foreground shrink-0" />
@@ -814,45 +760,28 @@ export default function PipelineKanban() {
                       variant="ghost"
                       size="sm"
                       onClick={handleEditPipeline}
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-primary shrink-0"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-[var(--primary-text)] shrink-0"
                       aria-label={t('kanban.header.editPipeline')}
                     >
                       <Edit className="w-[15px] h-[15px]" />
                     </Button>
                   </div>
-                  <p className="text-[12.5px] text-muted-foreground truncate">
+                  <p className="kanban-description text-xs text-muted-foreground truncate">
                     {pipeline?.description || t('kanban.header.noDescription')}
                   </p>
                 </div>
               </div>
 
-              {/* Quick Stats and Actions */}
-              <div className="flex w-full flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm lg:w-auto">
-                <div className="text-center min-w-16">
-                  <div className="font-semibold text-foreground">
-                    {pipeline?.item_count || pipeline?.conversations_count || 0}
-                  </div>
-                  <div className="text-muted-foreground">{t('kanban.header.conversations')}</div>
-                </div>
-                <div className="text-center min-w-14">
-                  <div className="font-semibold text-foreground">{stages.length}</div>
-                  <div className="text-muted-foreground">{t('kanban.header.stages')}</div>
-                </div>
-                {/* Header total = SERVER pipeline value (whole pipeline, unfiltered).
-                    It can exceed the sum of visible column sums when filters are active
-                    — that's intended (header = true total; columns = current view).
-                    Always shown (R$ 0,00 when empty), matching the mockup. */}
-                <div className="text-center min-w-20">
-                  <div className="font-semibold text-primary whitespace-nowrap">
-                    R$ {formatCurrency(pipeline?.services_info?.total_value ?? 0)}
-                  </div>
-                  <div className="text-muted-foreground">{t('kanban.header.totalValue')}</div>
-                </div>
-
+              <div className="kanban-summary-actions">
+                <dl className="kanban-kpis">
+                  <div><dd>{totalItemCount}</dd><dt>{t('kanban.board.deals', { defaultValue: 'Negócios' })}</dt></div>
+                  <div><dd>{stages.length}</dd><dt>{t('kanban.header.stages')}</dt></div>
+                  <div><dd>{stageTotal(stages.flatMap(stage => stage.items || []))}</dd><dt>{t('kanban.header.totalValue')}</dt></div>
+                </dl>
                 {/* Pipeline Options Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" aria-label="Opções do pipeline">
                       <MoreVertical className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -889,26 +818,13 @@ export default function PipelineKanban() {
               </div>
             </div>
 
-            {/* Green attribute chips (defined pipeline attributes — names only; per-item
-                values have no pipeline-scope home). Hidden when none. */}
-            {pipelineAttributeNames.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 pb-2">
-                {pipelineAttributeNames.map(name => (
-                  <span
-                    key={name}
-                    className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20 text-primary"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Search & consolidated Filtros bar */}
-            <div className="border-t border-border/50 py-2.5">
-              <div className="flex items-center gap-3">
+            <div className="kanban-actions-wrap border-t border-border/50 py-2.5">
+              <div className={`kanban-actions flex items-center gap-3 ${mobileSearchOpen ? "search-expanded" : ""}`}>
+                <select className="kanban-mobile-pipeline" aria-label="Pipeline" value={pipelineId} onChange={event => handlePipelineChange(event.target.value)}>{allPipelines.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select>
                 {/* Search input */}
-                <div className="relative w-[300px] shrink-0">
+                <div className="kanban-search relative w-[320px] shrink-0">
+                  <button className="mobile-search-toggle" aria-label="Buscar negócios" onClick={() => setMobileSearchOpen(true)}><Search className="w-4 h-4" /></button>
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                   <Input
                     placeholder={t('kanban.search.placeholder')}
@@ -916,10 +832,10 @@ export default function PipelineKanban() {
                     onChange={e => handleSearchChange(e.target.value)}
                     className="pl-9 h-9 text-sm"
                   />
-                  {searchInput && (
+                  {(searchInput || mobileSearchOpen) && (
                     <button
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => handleSearchChange('')}
+                      className="kanban-search-close absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Fechar busca" onClick={() => { handleSearchChange(''); setMobileSearchOpen(false); }}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -932,10 +848,10 @@ export default function PipelineKanban() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`h-9 gap-2 whitespace-nowrap ${activeFilterCount > 0 ? 'border-primary/40 bg-primary/5 text-primary' : ''}`}
+                      aria-label="Filtros" className={`kanban-filter-button h-9 gap-2 whitespace-nowrap ${activeFilterCount > 0 ? 'border-primary/40 bg-primary/5 text-[var(--primary-text)]' : ''}`}
                     >
                       <Filter className="w-4 h-4" />
-                      {t('kanban.search.filters')}
+                      <span className="kanban-action-label">{t('kanban.search.filters')}</span>
                       {activeFilterCount > 0 && (
                         <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
                           {activeFilterCount}
@@ -943,22 +859,19 @@ export default function PipelineKanban() {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="start" className="w-[300px] p-0 overflow-hidden">
+                  <PopoverContent align="start" className="kanban-filter-popover w-[300px] p-0 overflow-hidden">
                     <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
                       <span className="text-sm font-semibold text-foreground">
                         {t('kanban.search.filters')}
                       </span>
-                      {activeFilterCount > 0 && (
-                        <button
-                          onClick={clearFilters}
-                          className="text-xs font-semibold text-primary hover:text-primary/70 transition-colors"
-                        >
-                          {t('kanban.search.clearFilters')}
-                        </button>
-                      )}
+
                     </div>
 
                     <div className="max-h-[380px] overflow-y-auto p-2 space-y-1.5">
+                      <label className="block p-2 text-sm font-medium">
+                        {t('kanban.board.origin', { defaultValue: 'Origem e campanha' })}
+                        <Input className="mt-2" value={originFilter} onChange={event => updateFilters({ origin: event.target.value })} placeholder="Canal, origem ou UTM" />
+                      </label>
                       {/* Responsável */}
                       <div className="rounded-lg border border-border overflow-hidden">
                         <button
@@ -966,7 +879,7 @@ export default function PipelineKanban() {
                           onClick={() => setFilterSection(s => (s === 'assignee' ? null : 'assignee'))}
                         >
                           <span className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-primary" />
+                            <User className="w-4 h-4 text-[var(--primary-text)]" />
                             {t('kanban.search.assigneeFilter')}
                           </span>
                           <ChevronDown className={`w-4 h-4 transition-transform ${filterSection === 'assignee' ? 'rotate-180' : ''}`} />
@@ -978,7 +891,7 @@ export default function PipelineKanban() {
                               className="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
                             >
                               <span className="text-foreground">{t('kanban.search.all')}</span>
-                              {!assigneeFilter && <Check className="w-4 h-4 text-primary" />}
+                              {!assigneeFilter && <Check className="w-4 h-4 text-[var(--primary-text)]" />}
                             </button>
                             {uniqueAssignees.map(a => (
                               <button
@@ -994,7 +907,7 @@ export default function PipelineKanban() {
                                   </div>
                                 )}
                                 <span className="flex-1 text-left truncate text-foreground">{a.name}</span>
-                                {assigneeFilter === a.id && <Check className="w-4 h-4 text-primary shrink-0" />}
+                                {assigneeFilter === a.id && <Check className="w-4 h-4 text-[var(--primary-text)] shrink-0" />}
                               </button>
                             ))}
                           </div>
@@ -1008,7 +921,7 @@ export default function PipelineKanban() {
                           onClick={() => setFilterSection(s => (s === 'status' ? null : 'status'))}
                         >
                           <span className="flex items-center gap-2">
-                            <CircleDot className="w-4 h-4 text-primary" />
+                            <CircleDot className="w-4 h-4 text-[var(--primary-text)]" />
                             {t('kanban.search.statusFilter')}
                           </span>
                           <ChevronDown className={`w-4 h-4 transition-transform ${filterSection === 'status' ? 'rotate-180' : ''}`} />
@@ -1020,7 +933,7 @@ export default function PipelineKanban() {
                               className="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
                             >
                               <span className="text-foreground">{t('kanban.search.all')}</span>
-                              {!statusFilter && <Check className="w-4 h-4 text-primary" />}
+                              {!statusFilter && <Check className="w-4 h-4 text-[var(--primary-text)]" />}
                             </button>
                             {(['open', 'pending', 'resolved', 'snoozed'] as const).map(s => (
                               <button
@@ -1030,7 +943,7 @@ export default function PipelineKanban() {
                               >
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: statusColorHex(s) }} />
                                 <span className="flex-1 text-left text-foreground">{t(`kanban.search.status.${s}`)}</span>
-                                {statusFilter === s && <Check className="w-4 h-4 text-primary shrink-0" />}
+                                {statusFilter === s && <Check className="w-4 h-4 text-[var(--primary-text)] shrink-0" />}
                               </button>
                             ))}
                           </div>
@@ -1044,7 +957,7 @@ export default function PipelineKanban() {
                           onClick={() => setFilterSection(s => (s === 'period' ? null : 'period'))}
                         >
                           <span className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-primary" />
+                            <Calendar className="w-4 h-4 text-[var(--primary-text)]" />
                             {t('kanban.search.periodFilter')}
                           </span>
                           <ChevronDown className={`w-4 h-4 transition-transform ${filterSection === 'period' ? 'rotate-180' : ''}`} />
@@ -1064,7 +977,7 @@ export default function PipelineKanban() {
                                 className="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
                               >
                                 <span className="text-foreground">{p.label}</span>
-                                {(periodFilter === p.key || (!periodFilter && !p.key)) && <Check className="w-4 h-4 text-primary" />}
+                                {(periodFilter === p.key || (!periodFilter && !p.key)) && <Check className="w-4 h-4 text-[var(--primary-text)]" />}
                               </button>
                             ))}
                           </div>
@@ -1078,7 +991,7 @@ export default function PipelineKanban() {
                           onClick={() => setFilterSection(s => (s === 'priority' ? null : 'priority'))}
                         >
                           <span className="flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 text-primary" />
+                            <AlertCircle className="w-4 h-4 text-[var(--primary-text)]" />
                             {t('kanban.search.priorityFilter')}
                           </span>
                           <ChevronDown className={`w-4 h-4 transition-transform ${filterSection === 'priority' ? 'rotate-180' : ''}`} />
@@ -1090,7 +1003,7 @@ export default function PipelineKanban() {
                               className="flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors"
                             >
                               <span className="text-foreground">{t('kanban.search.all')}</span>
-                              {!priorityFilter && <Check className="w-4 h-4 text-primary" />}
+                              {!priorityFilter && <Check className="w-4 h-4 text-[var(--primary-text)]" />}
                             </button>
                             {(['alta', 'media', 'baixa'] as const).map(p => (
                               <button
@@ -1100,7 +1013,7 @@ export default function PipelineKanban() {
                               >
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PRIORITY_HEX[p] }} />
                                 <span className="flex-1 text-left text-foreground">{t(`kanban.search.priority.${p}`)}</span>
-                                {priorityFilter === p && <Check className="w-4 h-4 text-primary shrink-0" />}
+                                {priorityFilter === p && <Check className="w-4 h-4 text-[var(--primary-text)] shrink-0" />}
                               </button>
                             ))}
                           </div>
@@ -1109,22 +1022,22 @@ export default function PipelineKanban() {
                     </div>
 
                     <div className="flex items-center justify-end gap-2 px-3 py-2.5 border-t border-border">
-                      <Button variant="outline" size="sm" onClick={clearFilters} disabled={activeFilterCount === 0}>
-                        {t('kanban.search.clearFilters')}
-                      </Button>
-                      <Button size="sm" onClick={() => setFiltersPopoverOpen(false)}>
+                      <Button variant="outline" size="sm" onClick={() => setFiltersPopoverOpen(false)}>
                         {t('kanban.search.apply')}
                       </Button>
                     </div>
                   </PopoverContent>
                 </Popover>
+                <Button ref={personalizeButtonRef} className="kanban-customize-button" aria-label="Personalizar cartões" variant="outline" onClick={() => setPersonalizingCards(true)}><SlidersHorizontal className="w-4 h-4" /><span className="kanban-action-label">Personalizar cartões</span></Button>
+
+
 
                 {/* Inline clear when any filter active */}
                 {hasActiveFilters && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 text-primary hover:bg-primary/10"
+                    className="kanban-clear-filters h-9 text-[var(--primary-text)] hover:bg-primary/10"
                     onClick={clearFilters}
                   >
                     <X className="w-4 h-4 mr-1.5" />
@@ -1134,72 +1047,47 @@ export default function PipelineKanban() {
 
                 {/* Results summary */}
                 {hasActiveFilters && (
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {t('kanban.search.resultsCount', {
-                      count: totalFilteredCount,
-                      total: totalItemCount,
-                      stages: stagesWithResults,
-                    })}
+                  <span className="kanban-results text-xs text-muted-foreground">
+                    {totalFilteredCount} de {totalItemCount} negócios
                   </span>
                 )}
+                <Button className="kanban-add-button" aria-label="Adicionar negócio" disabled={!stages.length} onClick={() => { if (stages[0]) handleAddItem(stages[0]); }}><Plus className="w-4 h-4" /><span className="kanban-action-label">Adicionar negócio</span></Button>
               </div>
 
-              {/* Global empty state: all stages empty with active filters */}
-              {hasActiveFilters && totalFilteredCount === 0 && (
-                <div className="flex items-center gap-3 py-2 px-3 mt-2 rounded-lg bg-muted/60 border border-border/50">
-                  <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground flex-1">
-                    {t('kanban.search.globalNoResults')}
-                  </span>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearFilters}>
-                    {t('kanban.search.clearFilters')}
-                  </Button>
-                </div>
-              )}
             </div>
           </div>
         </div>
 
         {/* Kanban Board */}
-        <div className="flex-1 overflow-hidden">
-          <div ref={boardScrollRef} className="h-full overflow-x-auto overflow-y-hidden px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <div ref={boardScrollRef} aria-label="Quadro de negócios" className="kanban-scroll h-full overflow-x-auto overflow-y-hidden p-4 sm:p-6">
             {/* Kanban Content */}
             <div
-              className="flex gap-6 h-full pb-6"
+              className="flex gap-4 h-full"
               style={{ width: 'fit-content', minWidth: '100%' }}
             >
               {/* Stage Columns */}
               {stages.map((stage: PipelineStage) => {
+                const moveTargets = stages.filter(target => target.id !== stage.id);
                 const stageItems = filteredItemsByStage.get(stage.id) || [];
-                const stageSum = calculateStageTotal(stage.items);
+                const stageSum = stageTotal(stageItems);
                 return (
-                <div key={stage.id} className="flex-shrink-0" style={{ flex: '0 0 340px' }}>
-                  <div className="bg-background rounded-xl border border-border h-full flex flex-col overflow-hidden">
+                <section aria-label={stage.name} key={stage.id} data-stage-id={stage.id} className="kanban-column">
+                  <div className="kanban-column-surface h-full min-h-0 flex flex-col overflow-hidden">
                     {/* Stage Header — clean: color only on the top border + dot */}
                     <div
-                      className="flex-shrink-0 flex items-center justify-between gap-2 px-3.5 py-3 border-b border-border border-t-[3px]"
-                      style={{ borderTopColor: stage.color }}
+                      className="kanban-column-header flex-shrink-0 flex items-start justify-between gap-2 p-3"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-[9px] h-[9px] rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
-                        <h3 className="text-sm font-bold text-foreground truncate">{stage.name}</h3>
-                        <span className="text-[13px] text-muted-foreground shrink-0">
-                          {hasActiveFilters
-                            ? `${stageItems.length}/${stage.items?.length || stage.item_count || 0}`
-                            : (stage.items?.length || stage.item_count || 0)}
-                        </span>
-                        {stageSum > 0 && (
-                          <span className="text-[11.5px] font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary shrink-0">
-                            R$ {formatCurrency(stageSum)}
-                          </span>
-                        )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stage.color }} /><h3 title={stage.name} className="text-sm font-semibold truncate">{stage.name}</h3><span className="text-xs text-muted-foreground">{hasActiveFilters ? `${stageItems.length} de ${stage.items?.length || 0}` : stageItems.length}</span></div>
+                        <p className="mt-1 text-xs text-muted-foreground tabular-nums">{stageSum}</p>
                       </div>
 
                       <div className="flex items-center gap-0.5 shrink-0">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-[var(--primary-text)]"
                           onClick={() => handleAddItem(stage)}
                           aria-label={t('kanban.header.addItem')}
                         >
@@ -1237,32 +1125,45 @@ export default function PipelineKanban() {
 
                     {/* Items Drop Zone */}
                     <div
-                      className="flex-1 overflow-y-auto p-3 space-y-3"
-                      onDragOver={handleDragOver}
+                      className={`kanban-dropzone flex-1 min-h-0 overflow-y-auto p-2 space-y-2 ${dropTarget === stage.id ? "is-drop-target" : ""}`}
+                      onDragOver={event => { handleDragOver(event); setDropTarget(stage.id); }}
                       onDrop={e => handleDrop(e, stage.id)}
                     >
                       {stageItems.map(item => {
-                        const pBucket = priorityBucket(item.conversation?.priority);
-                        const card = getDealCardPresentation(item);
-                        const { contact, labels, message, avatarUrl: contactImage } = card;
-                        const moveTargets = stages.filter(s => s.id !== item.stage_id);
                         return (
                         <div
                           key={item.id}
-                          className="group relative bg-background rounded-xl p-3.5 border border-border hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer select-none"
-                          draggable
+                          data-deal-id={item.id}
+                          className={`deal-card-shell group relative min-w-0 ${draggedItem?.id === item.id ? "is-dragging" : ""}`}
+                          draggable={!movingIds.current.has(item.id)}
                           onDragStart={() => handleDragStart(item)}
                           onDragEnd={handleDragEnd}
-                          onClick={() => {
-                            if (isDraggingRef.current || Date.now() <= suppressClickUntilRef.current) return;
-                            // Clicking a card ALWAYS opens the detail ficha (mockup §3.5).
-                            // "Abrir conversa" lives in the ⋮ menu for conversation items.
-                            handleEditItem(item);
-                          }}
+
                         >
+                          <button className="deal-move-handle" aria-label={`Arrastar ${item.title || 'negócio'}`} draggable
+                            onDragStart={event => { event.stopPropagation(); if (event.currentTarget.parentElement) event.dataTransfer.setDragImage(event.currentTarget.parentElement, 16, 16); handleDragStart(item); }}
+                            onPointerDown={event => {
+                              if (event.pointerType === 'mouse') return;
+                              const element = event.currentTarget;
+                              const state = { x: event.clientX, y: event.clientY, active: false, timer: setTimeout(() => { state.active = true; handleDragStart(item); element.setPointerCapture(event.pointerId); }, 300) };
+                              touchDrag.current = state;
+                            }}
+                            onPointerMove={event => {
+                              const state = touchDrag.current; if (!state) return;
+                              if (!state.active) { if (Math.hypot(event.clientX - state.x, event.clientY - state.y) > 8) { clearTimeout(state.timer); touchDrag.current = null; } return; }
+                              const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-stage-id]');
+                              setDropTarget(target?.dataset.stageId || null);
+                              const board = boardScrollRef.current; if (board) { const rect = board.getBoundingClientRect(); if (event.clientX < rect.left + 32) board.scrollLeft -= 16; if (event.clientX > rect.right - 32) board.scrollLeft += 16; }
+                            }}
+                            onPointerUp={event => {
+                              const state = touchDrag.current; if (!state) return; clearTimeout(state.timer);
+                              if (state.active && draggedItem && dropTarget) void moveItemToStage(item, dropTarget);
+                              touchDrag.current = null; handleDragEnd(); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+                            }}
+                            onPointerCancel={() => { if (!touchDrag.current) return; clearTimeout(touchDrag.current.timer); touchDrag.current = null; handleDragEnd(); }}>⠿</button>
                           {/* Card menus: move + ⋮ */}
                           <div
-                            className="absolute top-2 right-2 flex items-center gap-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                            className="absolute top-2 right-2 flex items-center gap-0.5 opacity-100"
                             onClick={e => e.stopPropagation()}
                           >
                             {moveTargets.length > 0 && (
@@ -1331,123 +1232,54 @@ export default function PipelineKanban() {
                             </DropdownMenu>
                           </div>
 
-                          {/* Deal header */}
-                          <div className="flex items-start gap-3 mb-2.5 pr-14">
-                            {contactImage ? <img src={contactImage} alt="" className="w-10 h-10 shrink-0 rounded-full object-cover shadow-sm" /> : <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-primary/15 text-primary text-[13px] font-bold shadow-sm">{contact?.name?.[0]?.toUpperCase() || '?'}</div>}
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-bold text-foreground truncate">{card.title}</h4>
-                              <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">{card.secondary}</p>
-                            </div>
-                            {card.additionalContacts > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">+{card.additionalContacts}</span>}
-                          </div>
-
-                          {/* Message preview */}
-                          {message?.content && (
-                            <div className="mb-2.5 p-2.5 bg-muted/50 rounded-lg">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <span className="text-[11.5px] font-semibold text-foreground truncate">{item.conversation?.inbox?.name || 'Conversa'}</span>
-                                <span className="text-[11.5px] text-muted-foreground shrink-0">
-                                  {new Date(/^\d+$/.test(String(message.created_at)) ? Number(message.created_at) * 1000 : message.created_at).toLocaleDateString('pt-BR')}
-                                </span>
-                              </div>
-                              <p className="text-[12.5px] text-muted-foreground line-clamp-2 leading-relaxed">{message.content}</p>
-                            </div>
-                          )}
-
-                          {card.value > 0 && (
-                            <div className="flex items-center justify-between mb-2.5">
-                              <span className="text-[11.5px] text-muted-foreground">{t('kanban.conversation.valueLabel')}</span>
-                              <span className="text-[12.5px] font-bold text-primary">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: card.currency }).format(card.value)}</span>
-                            </div>
-                          )}
-
-                          {/* Footer: tag + priority + status */}
-                          {(labels.length > 0 || item.conversation?.status || pBucket) && (
-                            <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                              {labels.slice(0, 2).map(label => <span key={label.name} className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md max-w-[120px] truncate" style={{ backgroundColor: `${label.color || '#1f93ff'}20`, color: label.color || '#1f93ff' }}>{label.name}</span>)}
-                              {labels.length > 2 && <span className="text-[11px] text-muted-foreground">+{labels.length - 2}</span>}
-                              {pBucket && (
-                                <span
-                                  className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md ${PRIORITY_BADGE_CLASS[pBucket]}`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                                  {t(`kanban.search.priority.${pBucket}`)}
-                                </span>
-                              )}
-                              {item.conversation?.status && (
-                                <span
-                                  className={`inline-flex items-center gap-1 text-[11.5px] font-bold px-2 py-0.5 rounded-md ${statusBadgeClass(item.conversation.status)}`}
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                                  {t(`kanban.conversation.status.${item.conversation.status}`, item.conversation.status)}
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Date + assignee */}
-                          <div className="flex items-center justify-between text-[12px] text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {item.conversation?.last_activity_at
-                                ? new Date(item.conversation.last_activity_at * 1000).toLocaleDateString('pt-BR')
-                                : new Date((item.entered_at || 0) * 1000).toLocaleDateString('pt-BR')}
-                            </span>
-                            {item.owner && (
-                              <span className="flex items-center gap-1 min-w-0">
-                                <User className="w-3 h-3 shrink-0" />
-                                <span className="truncate max-w-24">{item.owner.name}</span>
-                              </span>
-                            )}
-                          </div>
+                          <ConfiguredDealCard item={item} configuration={configurationFor(pipeline!)} definitions={pipeline!.card_field_definitions || nativeFields} />
                         </div>
                         );
                       })}
 
                       {/* Empty note */}
                       {stageItems.length === 0 && (
-                        <div className="text-center py-8 text-[13px] text-muted-foreground">
-                          {hasActiveFilters ? t('kanban.search.noResults') : t('kanban.stage.noConversations')}
+                        <div className="kanban-stage-empty">
+                          <span>{hasActiveFilters ? t('kanban.board.noResults', { defaultValue: 'Nenhum negócio com esses filtros' }) : t('kanban.board.emptyStage', { defaultValue: 'Nenhum negócio nesta etapa' })}</span>
+                          <button onClick={() => handleAddItem(stage)}><Plus size={16} />{t('kanban.board.addDeal', { defaultValue: 'Adicionar negócio' })}</button>
                         </div>
                       )}
 
                       {/* '+' ghost add row */}
-                      <button
+                      {stageItems.length > 0 && <button
                         type="button"
                         onClick={() => handleAddItem(stage)}
-                        className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg text-[13.5px] font-semibold text-muted-foreground hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-colors"
+                        className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-lg text-[13.5px] font-semibold text-muted-foreground hover:bg-primary/10 hover:text-[var(--primary-text)] hover:border-primary/20 transition-colors"
                       >
                         <Plus className="w-4 h-4" />
-                        {t('kanban.item.addItemShort')}
-                      </button>
+                        {t('kanban.board.addDeal', { defaultValue: 'Adicionar negócio' })}
+                      </button>}
                     </div>
                   </div>
-                </div>
+                </section>
                 );
               })}
 
               {/* Add Stage Column */}
-              <div className="w-[340px] flex-shrink-0">
-                <div
-                  className="bg-muted/50 rounded-xl p-6 h-full border-2 border-dashed border-border flex flex-col items-center justify-center text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors cursor-pointer"
+              {stages.length > 0 && <div className="kanban-column">
+                <button type="button"
+                  className="kanban-add-stage bg-muted/50 rounded-xl p-6 h-full w-full flex flex-col items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
                   onClick={() => setShowCreateStageModal(true)}
                 >
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                    <Plus className="w-6 h-6 text-primary" />
+                    <Plus className="w-6 h-6 text-[var(--primary-text)]" />
                   </div>
                   <h3 className="text-sm font-medium mb-1">{t('kanban.stage.addStage')}</h3>
                   <p className="text-xs text-center">{t('kanban.stage.addStageDescription')}</p>
-                </div>
-              </div>
+                </button>
+              </div>}
 
-              {/* Empty state for no stages */}
               {stages.length === 0 && (
-                <div className="flex items-center justify-center w-full h-full">
-                  <div className="text-center">
-                    <div className="text-muted-foreground text-sm">
-                      {t('kanban.stage.noStages')}
-                    </div>
-                  </div>
+                <div className="board-page-state flex-1">
+                  <span className="board-state-icon"><Plus size={20} /></span>
+                  <h2 className="text-base font-semibold">{t('kanban.board.noStagesTitle', { defaultValue: 'Crie a primeira etapa' })}</h2>
+                  <p className="text-sm text-muted-foreground max-w-[360px] text-center">{t('kanban.board.noStagesDescription', { defaultValue: 'Organize os negócios conforme avançam no seu processo comercial.' })}</p>
+                  <Button variant="outline" onClick={() => setShowCreateStageModal(true)}>{t('kanban.stage.addStage')}</Button>
                 </div>
               )}
             </div>
