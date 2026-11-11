@@ -7,6 +7,7 @@
    appended to body, the body class also scales dialogs/popovers and is removed by
    MainLayout on logout/navigation to public pages. */
 body.authenticated-panel-density {
+  --shell-scale: 0.9;
   zoom: 0.9;
   overflow: hidden;
 }
@@ -107,6 +108,7 @@ body.authenticated-panel-density {
 }
 
 :root {
+  --shell-scale: 1;
   /* Agência Vetorial — premium editorial palette. These override the
      Evolution design-system defaults imported before this file. */
   --brand-sienna: #B45417;
@@ -130,7 +132,18 @@ body.authenticated-panel-density {
   --muted-foreground: #625D55;
   --accent: #D6E0E5;
   --accent-foreground: #203945;
-  --border: #D0C9BF;
+  --border: #E2DCD2;
+  --surface-sunken: #EAE6DE;
+  --card-hover: #FFFFFF;
+  --border-strong: #D0C9BF;
+  --shadow-1: 0 1px 2px rgba(14,14,14,.06);
+  --shadow-2: 0 4px 12px rgba(14,14,14,.08);
+  --shadow-3: 0 12px 28px rgba(14,14,14,.18);
+  --info: #55768A;
+  --success-text: #1A4F4F;
+  --warning-text: #8A5A00;
+  --danger-text: #A3321F;
+  --primary-text: #984311;
   --input: #C8C1B7;
   --ring: #B45417;
   --chart-1: #B45417;
@@ -201,7 +214,7 @@ body.authenticated-panel-density {
 .dark {
   --background: #0E0E0E;
   --foreground: #F2EFE8;
-  --card: #171717;
+  --card: #1C1B1A;
   --card-foreground: #F2EFE8;
   --popover: #1B1B1B;
   --popover-foreground: #F2EFE8;
@@ -213,7 +226,18 @@ body.authenticated-panel-density {
   --muted-foreground: #B8B1A7;
   --accent: #203945;
   --accent-foreground: #F2EFE8;
-  --border: #36322E;
+  --border: #2A2724;
+  --surface-sunken: #141414;
+  --card-hover: #222120;
+  --border-strong: #3A3530;
+  --shadow-1: none;
+  --shadow-2: 0 4px 12px rgba(0,0,0,.4);
+  --shadow-3: 0 12px 28px rgba(0,0,0,.6);
+  --info: #7FA0B3;
+  --success-text: #5FA3A3;
+  --warning-text: #E0A84A;
+  --danger-text: #E07A66;
+  --primary-text: #D9773A;
   --input: #3B3631;
   --ring: #C66B2C;
   --chart-1: #C66B2C;
@@ -551,3 +575,89 @@ body.authenticated-panel-density {
   --xy-handle-background-color-default: var(--color-muted-foreground);
   --xy-handle-border-color-default: var(--color-foreground);
 }
+
+/* Pipeline uses visual pixels even inside the compact authenticated shell. */
+.pipeline-board-root, .card-configuration-panel { zoom: calc(1 / var(--shell-scale, 1)); }
+.pipeline-board-root { position: relative; font-size: 14px; }
+.card-personalize-toolbar { padding: 8px 24px; background: var(--background); }
+.kanban-scroll { overscroll-behavior: contain; scroll-behavior: smooth; }
+.kanban-column { flex: 0 0 304px; width: 304px; min-width: 304px; max-width: 304px; }
+.kanban-column-surface { background: var(--surface-sunken); border-radius: 12px; }
+.kanban-column-header { min-height: 64px; }
+.kanban-dropzone { overscroll-behavior: contain; border: 2px solid transparent; border-radius: 8px; }
+.kanban-dropzone.is-drop-target { border-color: var(--ring); background: var(--accent); }
+.deal-card-shell { background: var(--card); color: var(--foreground); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow-1); transition: box-shadow 150ms, border-color 150ms, transform 150ms; }
+.deal-card-shell:hover { box-shadow: var(--shadow-2); background: var(--card-hover); border-color: var(--border-strong); transform: translateY(-1px); }
+.deal-card-shell.is-dragging { opacity: .4; border-style: dashed; box-shadow: var(--shadow-3); }
+.configured-deal-card { padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
+.configured-deal-card.compact { padding: 8px; gap: 4px; }
+.deal-field { min-width: 0; overflow-wrap: anywhere; }
+.deal-title { padding-right: 46px; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--foreground); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.deal-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.deal-field-contact, .deal-field-company { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deal-field-last_message { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.deal-contact-action { color: var(--primary-text); }
+.deal-labels { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.deal-label { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; max-width: 114px; overflow: hidden; border-radius: 6px; background: var(--muted); color: var(--foreground); }
+.deal-label i { width: 6px; height: 6px; border-radius: 100%; flex-shrink: 0; }
+.deal-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+.deal-footer > div { min-width: 0; }
+.deal-footer > div:last-child { flex-shrink: 0; }
+.deal-owner { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.deal-owner > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.deal-owner img, .deal-owner-avatar { width: 20px; height: 20px; border-radius: 100%; flex-shrink: 0; }
+.deal-owner-avatar { display: grid; place-items: center; background: var(--muted); }
+.deal-age-warning { color: var(--warning-text); } .deal-age-danger { color: var(--danger-text); }
+.pipeline-board-root :is(button,a):focus-visible, .card-configuration-panel :is(button,input,a):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.card-configuration-panel { position: fixed !important; top: 0 !important; right: 0 !important; left: auto !important; transform: none !important; width: 560px !important; max-width: calc(100vw - 32px) !important; height: 100dvh; max-height: 100dvh; padding: 0 !important; gap: 0 !important; display: flex !important; flex-direction: column; background: var(--background); color: var(--foreground); font-size: 14px; line-height: 20px; }
+.card-configuration-panel header { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.card-configuration-panel header p { color: var(--muted-foreground); margin-top: 4px; }
+.card-configuration-body { min-height: 0; flex: 1; overflow-y: auto; padding: 24px; }
+.card-configuration-panel fieldset { margin-bottom: 24px; }
+.card-configuration-panel legend, .card-configuration-panel h3 { font-weight: 600; margin-bottom: 12px; }
+.card-configuration-panel input:not([type=checkbox]):not([type=radio]) { border: 1px solid var(--border); border-radius: 6px; padding: 8px; width: 100%; }
+.configuration-field { min-height: 44px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
+.configuration-field label { display: flex; align-items: center; gap: 8px; flex: 1; }
+.configuration-field small { display: block; font-size: 12px; color: var(--muted-foreground); }
+.configuration-field button { width: 44px; min-height: 44px; }
+.configuration-density { display: inline-flex; align-items: center; gap: 8px; margin-right: 16px; min-height: 44px; }
+.configuration-preview { width: 288px; max-width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+.card-configuration-panel footer { padding: 16px; border-top: 1px solid var(--border); }
+.card-configuration-panel footer > div { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.card-configuration-panel footer button { min-height: 40px; padding: 8px 12px; border-radius: 6px; }
+.card-configuration-panel .configuration-save { background: var(--primary); color: var(--primary-foreground); }
+.card-configuration-panel button:disabled { opacity: .5; }
+@media (min-width: 1281px) { .pipeline-board-root.is-personalizing { padding-right: 560px; } }
+@media (max-width: 640px) { .card-configuration-panel { width: 100vw !important; max-width: 100vw !important; } .kanban-column-header button { min-width: 44px; min-height: 44px; } .card-personalize-toolbar { padding: 8px 16px; } }
+@media (prefers-reduced-motion: reduce) { .kanban-scroll { scroll-behavior: auto; } .deal-card-shell { transition: none; } }
+
+.deal-move-handle { position: absolute; left: 0; top: 0; width: 20px; height: 20px; opacity: 0; cursor: grab; touch-action: none; color: var(--muted-foreground); z-index: 1; }
+.deal-card-shell:hover .deal-move-handle, .deal-move-handle:focus-visible { opacity: 1; }
+.deal-card-shell.is-dragging > :not(.deal-move-handle) { visibility: hidden; }
+@media (pointer: coarse) { .deal-move-handle { opacity: 1; width: 32px; height: 32px; } .deal-title { padding-left: 20px; } }
+.card-configuration-panel { translate: none !important; }
+.deal-field-title { padding-right: 52px; }
+.deal-title { padding-right: 0; }
+
+.mobile-search-toggle { display: none; }
+@media (max-width: 640px) {
+  .kanban-header-summary, .kanban-attributes { display: none; }
+  .kanban-actions { gap: 8px; }
+  .kanban-actions .kanban-action-label { display: none; }
+  .kanban-actions :is(.kanban-filter-button,.kanban-customize-button,.kanban-add-button) { width: 44px; min-width: 44px; height: 44px; padding: 0; }
+  .kanban-actions .kanban-add-button { margin-left: 8px; }
+  .kanban-search { width: 44px; height: 44px; }
+  .kanban-search > :not(.mobile-search-toggle) { display: none; }
+  .mobile-search-toggle { display: grid; place-items: center; width: 44px; height: 44px; }
+  .search-expanded .kanban-search { flex: 1; width: auto; }
+  .search-expanded .kanban-search > :not(.mobile-search-toggle) { display: block; }
+  .search-expanded .kanban-search .mobile-search-toggle { display: none; }
+  .search-expanded :is(.kanban-filter-button,.kanban-customize-button,.kanban-add-button) { display: none; }
+  .kanban-column-header { min-height: 56px; padding: 8px 12px; }
+  .kanban-scroll { padding-top: 8px; padding-bottom: 8px; }
+}
+
+@media (max-width: 640px) { .kanban-actions-wrap { padding-top: 4px; padding-bottom: 4px; } .kanban-column-header { min-height: 52px; padding: 4px 12px; } .kanban-scroll { padding-top: 4px; } }
+
+.kanban-mobile-pipeline { display: none; }
+@media (max-width: 640px) { .kanban-mobile-pipeline { display: block; flex: 1; min-width: 0; max-width: 150px; height: 44px; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; } .search-expanded .kanban-mobile-pipeline { display: none; } }

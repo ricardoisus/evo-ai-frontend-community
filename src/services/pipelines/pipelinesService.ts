@@ -106,7 +106,7 @@ class PipelinesService {
 
   // Update pipeline
   async updatePipeline(pipelineId: string, data: UpdatePipelineData): Promise<Pipeline> {
-    const response = await api.patch(`/pipelines/${pipelineId}`, data);
+    const response = await api.patch(`/pipelines/${pipelineId}`, { pipeline: data });
     return extractData<Pipeline>(response);
   }
 
