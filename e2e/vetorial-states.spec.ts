@@ -1,0 +1,78 @@
+import { test, expect } from '@playwright/test';
+import { installVetorialAPI } from './vetorial-api';
+import path from 'node:path';
+import fs from 'node:fs';
+const output = process.env.I4_CAPTURES || 'test-results/i4';
+for (const width of [1440, 390])
+  for (const theme of ['light', 'dark']) {
+    test(`states ${width} ${theme}`, async ({ page }) => {
+      test.setTimeout(60000);
+      page.setDefaultTimeout(10000);
+      await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
+      await page.addInitScript(theme => {
+        localStorage.setItem('access_token', 'synthetic-local');
+        localStorage.setItem('theme', theme);
+        localStorage.setItem('i18nextLng', 'pt-BR');
+      }, theme);
+      const state = await installVetorialAPI(page);
+      const shot = async (name: string) => {
+        fs.mkdirSync(output, { recursive: true });
+        await page.screenshot({ path: path.join(output, `${name}-${width}-${theme}.png`) });
+      };
+      state.catalogEmpty = true;
+      await page.goto('/agents/list');
+      await expect(page.getByRole('heading', { name: /Nenhum agente/i })).toBeVisible();
+      await shot('lista-vazia');
+      state.catalogEmpty = false;
+      state.partial = true;
+      await page.reload();
+      await expect(page.getByText(/Alguns agentes estão indisponíveis/)).toBeVisible();
+      await shot('lista-parcial');
+      state.errorPath = 'agent_catalog';
+      await page.reload();
+      await expect(page.getByRole('heading', { name: 'Não foi possível carregar' })).toBeVisible();
+      await shot('lista-erro');
+      state.errorPath = '';
+      state.loadingPath = 'agent_catalog';
+      await page.reload();
+      await expect(page.getByLabel('Carregando')).toBeVisible();
+      await shot('lista-carregando');
+      state.loadingPath = '';
+      await expect(page.getByRole('link', { name: /Ricardo IA/ })).toBeVisible();
+      state.errorPath = 'vetorial_agents';
+      await page.getByRole('link', { name: /Ricardo IA/ }).click();
+      await expect(page.getByRole('heading', { name: 'Não foi possível carregar' })).toBeVisible();
+      await shot('perfil-erro');
+      state.errorPath = '';
+      state.loadingPath = 'vetorial_agents';
+      await page.getByRole('button', { name: 'Tentar novamente' }).click();
+      await expect(page.getByLabel('Carregando')).toBeVisible();
+      await shot('perfil-carregando');
+      state.loadingPath = '';
+      await expect(page.getByRole('heading', { name: 'Ricardo IA' })).toBeVisible();
+      state.errorPath = 'integrations';
+      await page.getByRole('tab', { name: 'Integrações' }).click();
+      await expect(page.getByRole('heading', { name: 'Não foi possível carregar' })).toBeVisible();
+      await shot('integracoes-erro');
+      state.errorPath = '';
+      await page.getByRole('button', { name: 'Tentar novamente' }).click();
+      await expect(page.getByText('Erro de conexão')).toBeVisible();
+      await page.getByRole('tab', { name: 'Testar agente' }).click();
+      await page.getByLabel('Propósito').fill('Exercitar falha sintética');
+      await page.getByLabel('Critério de aprovação').fill('Erro visível sem gasto');
+      state.errorPath = 'test_sessions';
+      await page.getByRole('button', { name: 'Iniciar teste' }).click();
+      await expect(page.getByRole('alert')).toBeVisible();
+      await shot('teste-erro');
+      state.errorPath = '';
+      state.errorPath = 'vetorial_ia';
+      await page.goto('/conversations/00000000-0000-4000-8000-000000000099');
+      await expect(page.getByRole('alert')).toBeVisible();
+      await shot('conversa-erro');
+      state.errorPath = '';
+      state.loadingPath = 'vetorial_ia';
+      await page.reload();
+      await expect(page.getByText('Consultando IA…')).toBeVisible();
+      await shot('conversa-carregando');
+    });
+  }

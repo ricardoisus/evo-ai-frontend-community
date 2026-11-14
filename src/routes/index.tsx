@@ -1,3 +1,4 @@
+import VetorialAgentPage from '@/pages/Customer/Agents/VetorialAgentPage';
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import PrivateRoute from './PrivateRoute';
@@ -1192,6 +1193,7 @@ const AppRouter = () => {
           {/* Rota principal de agents redireciona para /agents/list */}
           <Route path="/agents" element={<Navigate to="/agents/list" replace />} />
 
+          <Route path="/agents/vetorial/:id" element={<PrivateRoute><CustomerRoute><MainLayout><PermissionRoute resource="ai_agents" action="read"><VetorialAgentPage /></PermissionRoute></MainLayout></CustomerRoute></PrivateRoute>} />
           {/* Lista de agentes */}
           <Route
             path="/agents/list"
