@@ -1,3 +1,9 @@
+import { conversationIA, controlIA } from '@/services/agents/vetorialService';
+vi.mock('@/services/agents/vetorialService', () => ({
+  conversationIA: vi.fn().mockRejectedValue({ response: { status: 404 } }),
+  controlIA: vi.fn().mockResolvedValue({}),
+  errorMessage: () => 'Não foi possível concluir.',
+}));
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ConversationActionsDropdown from './ConversationActionsDropdown';
@@ -38,7 +44,15 @@ vi.mock('@evoapi/design-system/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuSeparator: () => <hr />,
-  DropdownMenuItem: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
+  DropdownMenuItem: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => (
     <button type="button" onClick={onClick} disabled={disabled}>
       {children}
     </button>
@@ -56,6 +70,41 @@ const baseConversation = {
 describe('ConversationActionsDropdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(conversationIA).mockRejectedValue({ response: { status: 404 } });
+  });
+
+  it('uses durable managed control rather than the native handoff', async () => {
+    vi.mocked(conversationIA).mockResolvedValue({
+      version: 4,
+      paused: true,
+      reason: 'pausa_manual',
+      eligible: true,
+      mode: 'pilot',
+      health: 'healthy',
+    });
+    render(
+      <ConversationActionsDropdown
+        conversation={{ ...baseConversation, inbox: { agent_bot_active: true } }}
+      />,
+    );
+    fireEvent.click(screen.getByText('conversationActionsDropdown.returnToBot'));
+    await waitFor(() =>
+      expect(controlIA).toHaveBeenCalledWith('conversation-1', 'resume', 4, false),
+    );
+    expect(mockConversations.returnConversationToBot).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to native handoff after a managed lookup failure', async () => {
+    vi.mocked(conversationIA).mockRejectedValue({ response: { status: 503 } });
+    render(
+      <ConversationActionsDropdown
+        conversation={{ ...baseConversation, inbox: { agent_bot_active: true } }}
+      />,
+    );
+    fireEvent.click(screen.getByText('conversationActionsDropdown.returnToBot'));
+    await waitFor(() => expect(conversationIA).toHaveBeenCalled());
+    expect(mockConversations.returnConversationToBot).not.toHaveBeenCalled();
+    expect(controlIA).not.toHaveBeenCalled();
   });
 
   it('does not render when conversation is null', () => {

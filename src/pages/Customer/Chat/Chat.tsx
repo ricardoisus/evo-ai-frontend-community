@@ -1,3 +1,4 @@
+import { ConversationIA } from '@/components/agents/vetorial/ConversationIA';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { Suspense, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 
@@ -910,6 +911,7 @@ const Chat = () => {
                 unreadCount={conversations.getUnreadCount(selectedConversation.id) || 0}
               />
 
+              <ConversationIA key={selectedConversation.id} id={selectedConversation.id} assignee={!!selectedConversation.assignee_id} editable={can('conversations', 'update')} />
               {/* Chat Tabs - Show tabs for conversation type dashboard apps */}
               <ChatTabs
                 dashboardApps={dashboardApps}

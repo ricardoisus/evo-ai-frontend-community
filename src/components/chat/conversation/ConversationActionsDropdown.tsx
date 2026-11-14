@@ -1,3 +1,5 @@
+import { conversationIA, controlIA, errorMessage } from '@/services/agents/vetorialService';
+import { toast } from 'sonner';
 import React, { useState } from 'react';
 
 import { Button } from '@evoapi/design-system/button';
@@ -108,10 +110,29 @@ const ConversationActionsDropdown: React.FC<ConversationActionsDropdownProps> = 
   const handleReturnToBot = async () => {
     setIsUpdatingStatus(true);
     try {
-      await conversations.returnConversationToBot(conversation.id, onFilterReload);
+      let managed;
+      try {
+        managed = await conversationIA(conversation.id);
+      } catch (error) {
+        if ((error as { response?: { status?: number } }).response?.status !== 404) throw error;
+      }
+      if (managed) {
+        const assigned = !!conversation.assignee_id;
+        if (
+          assigned &&
+          !window.confirm(
+            'Remover o responsável humano e devolver à IA? O status e a leitura serão preservados.',
+          )
+        )
+          return;
+        await controlIA(conversation.id, 'resume', managed.version, assigned);
+        await onFilterReload?.();
+      } else {
+        await conversations.returnConversationToBot(conversation.id, onFilterReload);
+      }
       setOpen(false);
     } catch (error) {
-      console.error('❌ Error returning conversation to bot:', error);
+      toast.error(errorMessage(error));
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -195,7 +216,13 @@ const ConversationActionsDropdown: React.FC<ConversationActionsDropdownProps> = 
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={o => { setOpen(o); if (o) onDropdownOpen?.(); }}>
+    <DropdownMenu
+      open={open}
+      onOpenChange={o => {
+        setOpen(o);
+        if (o) onDropdownOpen?.();
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
           <MoreVertical className="h-4 w-4" />
@@ -415,66 +442,70 @@ const ConversationActionsDropdown: React.FC<ConversationActionsDropdownProps> = 
                 {t('pipeline.noPipelines')}
               </DropdownMenuItem>
             ) : null}
-            {isPipelinesLoaded && !pipelinesLoadFailed && allPipelines.map(pipeline => {
-              const convId = String(conversation!.id);
-              const convInThisPipeline = pipelinesForConversation?.find(p => p.id === pipeline.id);
-              const currentItem = convInThisPipeline
-                ? findItemInPipeline(convInThisPipeline, convId)
-                : undefined;
-              return (
-                <DropdownMenuSub key={pipeline.id}>
-                  <DropdownMenuSubTrigger className="flex items-center gap-2">
-                    <GitBranch className="h-4 w-4" />
-                    {pipeline.name}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {isLoadingPipelines ? (
-                      <DropdownMenuItem disabled className="text-xs">
-                        {t('pipeline.loading')}
-                      </DropdownMenuItem>
-                    ) : (
-                      <>
-                        {(pipeline.stages ?? []).map(stage => {
-                          const isCurrentStage = currentItem?.stage_id === stage.id;
-                          return (
-                            <DropdownMenuItem
-                              key={stage.id}
-                              onClick={() => {
-                                onPipelineStageSelect?.(pipeline, stage);
-                                setOpen(false);
-                              }}
-                              className="flex items-center gap-2"
-                            >
-                              {isCurrentStage ? (
-                                <Check className="h-3 w-3 text-primary" />
-                              ) : (
-                                <span className="w-3" />
-                              )}
-                              {stage.name}
-                            </DropdownMenuItem>
-                          );
-                        })}
-                        {convInThisPipeline && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                onRemoveFromPipeline?.(convInThisPipeline);
-                                setOpen(false);
-                              }}
-                              className="flex items-center gap-2 text-destructive focus:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                              {t('pipeline.removeFrom')}
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              );
-            })}
+            {isPipelinesLoaded &&
+              !pipelinesLoadFailed &&
+              allPipelines.map(pipeline => {
+                const convId = String(conversation!.id);
+                const convInThisPipeline = pipelinesForConversation?.find(
+                  p => p.id === pipeline.id,
+                );
+                const currentItem = convInThisPipeline
+                  ? findItemInPipeline(convInThisPipeline, convId)
+                  : undefined;
+                return (
+                  <DropdownMenuSub key={pipeline.id}>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2">
+                      <GitBranch className="h-4 w-4" />
+                      {pipeline.name}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {isLoadingPipelines ? (
+                        <DropdownMenuItem disabled className="text-xs">
+                          {t('pipeline.loading')}
+                        </DropdownMenuItem>
+                      ) : (
+                        <>
+                          {(pipeline.stages ?? []).map(stage => {
+                            const isCurrentStage = currentItem?.stage_id === stage.id;
+                            return (
+                              <DropdownMenuItem
+                                key={stage.id}
+                                onClick={() => {
+                                  onPipelineStageSelect?.(pipeline, stage);
+                                  setOpen(false);
+                                }}
+                                className="flex items-center gap-2"
+                              >
+                                {isCurrentStage ? (
+                                  <Check className="h-3 w-3 text-primary" />
+                                ) : (
+                                  <span className="w-3" />
+                                )}
+                                {stage.name}
+                              </DropdownMenuItem>
+                            );
+                          })}
+                          {convInThisPipeline && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  onRemoveFromPipeline?.(convInThisPipeline);
+                                  setOpen(false);
+                                }}
+                                className="flex items-center gap-2 text-destructive focus:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                                {t('pipeline.removeFrom')}
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                );
+              })}
           </>
         )}
 
