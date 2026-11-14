@@ -17,7 +17,7 @@ for (const width of [1440, 390])
       const go = () => page.goto('/conversations/00000000-0000-4000-8000-000000000099');
       const shot = async (name: string) => {
         fs.mkdirSync(output, { recursive: true });
-        await page.screenshot({ path: path.join(output, `${name}-${width}-${theme}.png`) });
+        await page.screenshot({ animations: 'disabled', path: path.join(output, `${name}-${width}-${theme}.png`) });
       };
       await go();
       await expect(page.getByText('IA atendendo', { exact: true })).toBeVisible();

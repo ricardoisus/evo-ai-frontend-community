@@ -20,7 +20,7 @@ for (const width of [1440, 390])
       page.on('pageerror', e => errors.push(e.message));
       async function shot(name: string) {
         fs.mkdirSync(output, { recursive: true });
-        await page.screenshot({ path: path.join(output, `${name}-${width}-${theme}.png`) });
+        await page.screenshot({ animations: 'disabled', path: path.join(output, `${name}-${width}-${theme}.png`) });
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth > window.innerWidth + 1,
         );
