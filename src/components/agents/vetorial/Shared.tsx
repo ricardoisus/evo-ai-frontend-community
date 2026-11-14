@@ -1,8 +1,35 @@
-import { AlertCircle, Bot } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Bot } from 'lucide-react';
 import { Button } from '@evoapi/design-system';
 import { Link } from 'react-router-dom';
 import { healthLabel, modeLabel, type ManagedAgent } from '@/services/agents/vetorialService';
 import './vetorial.css';
+export function Notice({
+  children,
+  danger = false,
+  retry,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  danger?: boolean;
+  retry?: () => void;
+  disabled?: boolean;
+}) {
+  const Icon = danger ? AlertCircle : AlertTriangle;
+  return (
+    <div
+      className={`va-banner${danger ? ' va-banner-danger' : ''}`}
+      role={danger ? 'alert' : 'status'}
+    >
+      <Icon size={16} aria-hidden="true" />
+      <span>{children}</span>
+      {retry && (
+        <Button variant="ghost" disabled={disabled} onClick={retry}>
+          Tentar novamente
+        </Button>
+      )}
+    </div>
+  );
+}
 export function Status({ value, label }: { value: string; label: string }) {
   return (
     <span className="va-status" data-state={value}>
@@ -33,9 +60,20 @@ export function LoadState({
     </div>
   ) : (
     <div className="va-skeleton" aria-label="Carregando" role="status">
-      <span />
-      <span />
-      <span />
+      <div className="va-skeleton-kpis" aria-hidden="true">
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} />
+        ))}
+      </div>
+      <div className="va-skeleton-table" aria-hidden="true">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i}>
+            {Array.from({ length: 5 }, (_, j) => (
+              <span key={j} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

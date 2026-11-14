@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentWorkspace } from '@/pages/Customer/Agents/VetorialAgentPage';
 import { ConversationIA } from './ConversationIA';
 import { MetricsPanel, TestPanel } from './Panels';
-import { ManagedAgents } from './Shared';
+import { ManagedAgents, LoadState } from './Shared';
 import * as service from '@/services/agents/vetorialService';
 import fixture from '../../../../e2e/fixtures/vetorial-snapshot.json';
 vi.mock('@/services/agents/vetorialService', async original => ({
@@ -158,6 +158,10 @@ describe('Managed agent operation', () => {
     });
     expect(screen.getByRole('button', { name: 'Confirmar ativação' })).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox'));
+    expect(screen.getByRole('button', { name: 'Confirmar ativação' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Confirmar ativação' })).toHaveClass(
+      'va-danger-button',
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar ativação' }));
     await waitFor(() =>
       expect(service.write).toHaveBeenCalledWith(
@@ -261,6 +265,27 @@ describe('Internal conversation controls', () => {
     });
     render(<ConversationIA id="c1" assignee={false} editable />);
     await screen.findByText('IA desligada');
+    expect(screen.getByRole('button', { name: 'Pausar IA' })).toBeDisabled();
+    expect(screen.getByText('IA desligada')).toHaveAttribute('data-state', 'inactive');
     expect(screen.getByRole('button', { name: 'Devolver à IA' })).toBeDisabled();
   });
+});
+
+it('loads with five KPI tiles and three table rows', () => {
+  const { container } = render(<LoadState />);
+  expect(container.querySelectorAll('.va-skeleton-kpis span')).toHaveLength(5);
+  expect(container.querySelectorAll('.va-skeleton-table > div')).toHaveLength(3);
+});
+it('retries failed test creation with the same intent', async () => {
+  vi.mocked(service.write).mockRejectedValue(new Error('synthetic'));
+  render(<TestPanel id="a1" revisions={[revision]} />);
+  fireEvent.change(screen.getByLabelText('Propósito'), { target: { value: 'Teste' } });
+  fireEvent.change(screen.getByLabelText('Critério de aprovação'), {
+    target: { value: 'Simulação' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Iniciar teste' }));
+  expect(await screen.findByRole('alert')).toHaveClass('va-banner-danger');
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+  await waitFor(() => expect(service.write).toHaveBeenCalledTimes(2));
+  expect(vi.mocked(service.write).mock.calls[0][4]).toBe(vi.mocked(service.write).mock.calls[1][4]);
 });

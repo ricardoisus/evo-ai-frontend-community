@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@evoapi/design-system';
-import { Activity } from 'lucide-react';
+import { MessageSquare, CalendarCheck, DollarSign, Timer, AlertCircle } from 'lucide-react';
 import {
   errorMessage,
   read,
@@ -9,14 +9,15 @@ import {
   type Revision,
   type TestSession,
 } from '@/services/agents/vetorialService';
-import { LoadState, Status } from './Shared';
+import { LoadState, Status, Notice } from './Shared';
 const money = (micro: number | null) =>
   micro === null
     ? 'Indisponível'
     : new Intl.NumberFormat('pt-BR', {
         style: 'currency',
         currency: 'USD',
-        minimumFractionDigits: 4,
+        minimumFractionDigits: micro % 10000 === 0 ? 2 : 4,
+        maximumFractionDigits: 4,
       }).format(micro / 1000000);
 export function MetricsPanel({ id }: { id: string }) {
   const [source, setSource] = useState('live');
@@ -86,9 +87,14 @@ export function MetricsPanel({ id }: { id: string }) {
                   : 'Sem medição',
               ],
               ['Erros', data.measurement_started_at ? data.errors : '—'],
-            ].map(([label, value]) => (
+            ].map(([label, value], index) => (
               <div key={label}>
-                <Activity size={16} aria-hidden="true" />
+                {(() => {
+                  const Icon = [MessageSquare, CalendarCheck, DollarSign, Timer, AlertCircle][
+                    index
+                  ];
+                  return <Icon size={16} aria-hidden="true" />;
+                })()}
                 <strong>{value}</strong>
                 <span>{label}</span>
               </div>
@@ -214,6 +220,9 @@ export function TestPanel({ id, revisions }: { id: string; revisions: Revision[]
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [failedAction, setFailedAction] = useState<'start' | 'turn' | 'close' | 'refresh'>(
+    'refresh',
+  );
   const [intent, setIntent] = useState<{ key: string; body: string } | undefined>(() => {
     try {
       return JSON.parse(sessionStorage.getItem(`vetorial-intent-v1:${id}`) || 'null') || undefined;
@@ -242,6 +251,7 @@ export function TestPanel({ id, revisions }: { id: string; revisions: Revision[]
     };
   }, [id, storageKey]);
   async function act(action: 'start' | 'turn' | 'close' | 'refresh') {
+    setFailedAction(action);
     setBusy(true);
     setError('');
     try {
@@ -295,15 +305,14 @@ export function TestPanel({ id, revisions }: { id: string; revisions: Revision[]
   }
   return (
     <section className="va-panel">
-      <h2>Testar agente</h2>
       <p>
         Simulação sem API · ferramentas e agenda simuladas · gasto de inferência US$ 0. Nenhuma
         mensagem é enviada ao WhatsApp.
       </p>
       {error && (
-        <p role="alert" className="va-error">
+        <Notice danger disabled={busy} retry={() => void act(failedAction)}>
           {error}
-        </p>
+        </Notice>
       )}
       {!session ? (
         <>

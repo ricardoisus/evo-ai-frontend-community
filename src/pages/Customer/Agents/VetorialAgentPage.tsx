@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@evoapi/design-system';
+import { AlertTriangle } from 'lucide-react';
 import { usePermissions } from '@/contexts/PermissionsContext';
 import {
   catalog,
@@ -23,7 +24,7 @@ import {
   type Revision,
   type Snapshot,
 } from '@/services/agents/vetorialService';
-import { LoadState, Status } from '@/components/agents/vetorial/Shared';
+import { LoadState, Status, Notice } from '@/components/agents/vetorial/Shared';
 import { IntegrationsPanel, MetricsPanel, TestPanel } from '@/components/agents/vetorial/Panels';
 function validation(payload: Snapshot): string {
   if (
@@ -89,12 +90,12 @@ const tabs = [
   'Testar agente',
 ];
 const numericBehavior: Record<string, [string, number, number, number]> = {
-  text_debounce_ms: ['Espera entre textos (s)', 1, 120, 1000],
-  audio_debounce_ms: ['Espera entre áudios (s)', 1, 180, 1000],
-  analysis_silence_ms: ['Silêncio para análise (s)', 60, 3600, 1000],
-  typing_cpm: ['Digitação (caracteres/min)', 300, 3000, 1],
-  first_typing_cap_ms: ['Espera máxima inicial (s)', 0, 30, 1000],
-  next_typing_cap_ms: ['Espera máxima seguinte (s)', 0, 30, 1000],
+  text_debounce_ms: ['Espera entre textos (segundos)', 1, 120, 1000],
+  audio_debounce_ms: ['Espera entre áudios (segundos)', 1, 180, 1000],
+  analysis_silence_ms: ['Silêncio para análise (segundos)', 60, 3600, 1000],
+  typing_cpm: ['Digitação (caracteres por minuto)', 300, 3000, 1],
+  first_typing_cap_ms: ['Espera máxima inicial (segundos)', 0, 30, 1000],
+  next_typing_cap_ms: ['Espera máxima seguinte (segundos)', 0, 30, 1000],
 };
 const limitLabels: Record<string, string> = {
   messages_per_hour: 'Mensagens por hora',
@@ -694,10 +695,11 @@ export function AgentWorkspace({
                 Use o formato internacional, por exemplo +5511999990000.
               </p>
             )}
-            {activationDirty && <p role="status">Alteração de ativação ainda não aplicada.</p>}
+            {activationDirty && <Notice>Alteração de ativação ainda não aplicada.</Notice>}
             <p>
-              As listas são compartilhadas pelos dois papéis. Alterar a ativação publica uma nova
-              versão imediatamente.
+              <AlertTriangle size={14} className="inline" aria-hidden="true" /> As listas são
+              compartilhadas pelos dois papéis. Alterar a ativação publica uma nova versão
+              imediatamente.
             </p>
             {editable && profile.can_manage && (
               <Button variant="outline" disabled={busy || dirty || !listsValid} onClick={activate}>
@@ -759,12 +761,12 @@ export function AgentWorkspace({
             />
             Confirmo a ampliação do atendimento.
           </label>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setChallenge(undefined)}>
+          <DialogFooter className="va-confirm-actions">
+            <Button variant="ghost" onClick={() => setChallenge(undefined)}>
               Cancelar
             </Button>
             <Button
-              variant="outline"
+              className="va-danger-button"
               disabled={busy || phrase !== challenge?.phrase || !confirmed}
               onClick={applyMode}
             >

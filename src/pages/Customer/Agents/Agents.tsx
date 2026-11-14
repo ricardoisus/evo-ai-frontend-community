@@ -1,8 +1,13 @@
 import { catalog, type ManagedAgent } from '@/services/agents/vetorialService';
-import { ManagedAgents, LoadState } from '@/components/agents/vetorial/Shared';
+import { ManagedAgents, LoadState, Notice } from '@/components/agents/vetorial/Shared';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   Button,
   Dialog,
   DialogContent,
@@ -65,6 +70,7 @@ const Agentes = () => {
 
   const [managed, setManaged] = useState<ManagedAgent[]>([]);
   const [catalogError, setCatalogError] = useState('');
+  const [managedFiltersOpen, setManagedFiltersOpen] = useState(false);
   const [managedMode, setManagedMode] = useState('');
   const [managedHealth, setManagedHealth] = useState('');
   const [catalogSource, setCatalogSource] = useState('');
@@ -154,7 +160,8 @@ const Agentes = () => {
           },
         };
 
-        const pagination = response.meta?.pagination || (response.meta as unknown as PaginationMeta);
+        const pagination =
+          response.meta?.pagination || (response.meta as unknown as PaginationMeta);
         const total = pagination?.total || 0;
         const pageSize = pagination?.page_size || DEFAULT_PAGE_SIZE;
 
@@ -350,6 +357,49 @@ const Agentes = () => {
       agent.description?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const managedFilters = (
+    <div className="va-row" aria-label="Filtros de agentes gerenciados">
+      <label>
+        Origem{' '}
+        <select
+          aria-label="Origem do agente"
+          value={catalogSource}
+          onChange={e => setCatalogSource(e.target.value)}
+        >
+          <option value="">Todas</option>
+          <option value="vetorial_runtime">Vetorial</option>
+          <option value="core">Nativos</option>
+        </select>
+      </label>
+      <label>
+        Modo{' '}
+        <select
+          aria-label="Modo dos agentes"
+          value={managedMode}
+          onChange={e => setManagedMode(e.target.value)}
+        >
+          <option value="">Todos os modos</option>
+          <option value="off">Desligado</option>
+          <option value="pilot">Piloto</option>
+          <option value="all">Todos</option>
+        </select>
+      </label>
+      <label>
+        Saúde{' '}
+        <select
+          aria-label="Saúde dos agentes"
+          value={managedHealth}
+          onChange={e => setManagedHealth(e.target.value)}
+        >
+          <option value="">Todos os estados</option>
+          <option value="healthy">Saudável</option>
+          <option value="delayed">Atrasado</option>
+          <option value="unavailable">Indisponível</option>
+          <option value="awaiting_configuration">Aguardando configuração</option>
+        </select>
+      </label>
+    </div>
+  );
   return (
     <div className="flex flex-col h-full">
       {isWizardOpen ? (
@@ -385,53 +435,36 @@ const Agentes = () => {
                 onManageApiKeys={() => setIsApiKeysModalOpen(true)}
                 onBulkDelete={handleBulkDelete}
                 onClearSelection={() => setState(prev => ({ ...prev, selectedAgents: [] }))}
-                onFilter={handleOpenFilter}
+                onFilter={() =>
+                  window.matchMedia('(max-width: 640px)').matches
+                    ? setManagedFiltersOpen(true)
+                    : handleOpenFilter()
+                }
                 activeFilters={appliedFilters}
                 showFilters={true}
               />
             </div>
 
-            <div className="va-row" aria-label="Filtros de agentes gerenciados">
-              <label>
-                Origem{' '}
-                <select
-                  aria-label="Origem do agente"
-                  value={catalogSource}
-                  onChange={e => setCatalogSource(e.target.value)}
+            <div className="va-desktop-filters">{managedFilters}</div>
+            <Sheet open={managedFiltersOpen} onOpenChange={setManagedFiltersOpen}>
+              <SheetContent className="va-filter-sheet">
+                <SheetHeader>
+                  <SheetTitle>Filtros</SheetTitle>
+                  <SheetDescription>Filtre os agentes por origem, modo e saúde.</SheetDescription>
+                </SheetHeader>
+                {managedFilters}
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setManagedFiltersOpen(false);
+                    handleOpenFilter();
+                  }}
                 >
-                  <option value="">Todas</option>
-                  <option value="vetorial_runtime">Vetorial</option>
-                  <option value="core">Nativos</option>
-                </select>
-              </label>
-              <label>
-                Modo{' '}
-                <select
-                  aria-label="Modo dos agentes"
-                  value={managedMode}
-                  onChange={e => setManagedMode(e.target.value)}
-                >
-                  <option value="">Todos os modos</option>
-                  <option value="off">Desligado</option>
-                  <option value="pilot">Piloto</option>
-                  <option value="all">Todos</option>
-                </select>
-              </label>
-              <label>
-                Saúde{' '}
-                <select
-                  aria-label="Saúde dos agentes"
-                  value={managedHealth}
-                  onChange={e => setManagedHealth(e.target.value)}
-                >
-                  <option value="">Todos os estados</option>
-                  <option value="healthy">Saudável</option>
-                  <option value="delayed">Atrasado</option>
-                  <option value="unavailable">Indisponível</option>
-                  <option value="awaiting_configuration">Aguardando configuração</option>
-                </select>
-              </label>
-            </div>
+                  Filtros do catálogo Evo
+                </Button>
+                <Button onClick={() => setManagedFiltersOpen(false)}>Concluir</Button>
+              </SheetContent>
+            </Sheet>
             <AgentsFilter
               open={filterModalOpen}
               onOpenChange={setFilterModalOpen}
@@ -444,12 +477,9 @@ const Agentes = () => {
             <div data-tour="agents-list">
               {catalogError && <LoadState error={catalogError} retry={() => loadAgents()} />}
               {partial && (
-                <div role="status">
+                <Notice retry={() => void loadAgents()}>
                   Alguns agentes estão indisponíveis. Os agentes Vetorial continuam acessíveis.{' '}
-                  <Button variant="outline" onClick={() => loadAgents()}>
-                    Tentar novamente
-                  </Button>
-                </div>
+                </Notice>
               )}
               {!state.loading && (
                 <ManagedAgents

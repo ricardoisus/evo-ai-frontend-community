@@ -21,9 +21,11 @@ for (const width of [1440, 390])
       };
       await go();
       await expect(page.getByText('IA atendendo', { exact: true })).toBeVisible();
+      await expect(page.getByText('IA atendendo', { exact: true })).toHaveAttribute('data-state', 'attending');
       await shot('conversa-atendendo');
       await page.getByRole('button', { name: 'Pausar IA', exact: true }).click();
       await expect(page.getByText('IA pausada · por pessoa')).toBeVisible();
+      await expect(page.getByText('IA pausada · por pessoa', { exact: true })).toHaveAttribute('data-state', 'paused');
       await shot('conversa-pausada');
       await page.getByRole('button', { name: 'Devolver à IA', exact: true }).click();
       await expect(page.getByText('IA atendendo', { exact: true })).toBeVisible();
@@ -40,6 +42,8 @@ for (const width of [1440, 390])
       state.mode = 'off';
       await go();
       await expect(page.getByText('IA desligada')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Pausar IA', exact: true })).toBeDisabled();
+      await expect(page.getByText('IA desligada')).toHaveAttribute('data-state', 'inactive');
       await shot('conversa-desligada');
       state.mode = 'pilot';
       state.eligible = false;

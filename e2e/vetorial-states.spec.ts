@@ -27,6 +27,8 @@ for (const width of [1440, 390])
       state.partial = true;
       await page.reload();
       await expect(page.getByText(/Alguns agentes estão indisponíveis/)).toBeVisible();
+      await expect(page.locator('.va-banner')).toHaveCount(1);
+      await expect(page.locator('.va-banner svg')).toHaveCount(1);
       await shot('lista-parcial');
       state.errorPath = 'agent_catalog';
       await page.reload();
@@ -63,6 +65,9 @@ for (const width of [1440, 390])
       state.errorPath = 'test_sessions';
       await page.getByRole('button', { name: 'Iniciar teste' }).click();
       await expect(page.getByRole('alert')).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveClass(/va-banner-danger/);
+      await expect(page.getByRole('button', { name: 'Tentar novamente' })).toBeVisible();
+      await page.getByRole('alert').scrollIntoViewIfNeeded();
       await shot('teste-erro');
       state.errorPath = '';
       state.errorPath = 'vetorial_ia';

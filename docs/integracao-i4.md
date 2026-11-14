@@ -23,3 +23,9 @@ Use one Playwright invocation at a time: its temporary Vite server is shared on 
 The optional whole-repository Vitest run has unrelated baseline failures. A clean `git archive 783a951` with the same node_modules reproduced 27 failures/22 passes in Sidebar, ContactAvatar, widget MessageList, opusRecorder and flowEditor lastSavedMark. The I4 and native handoff regression suites are green. This stage does not claim that the repository-wide legacy suite is green.
 
 Canonical delivery, validation summary and screenshot matrix: `/Users/ricardohenrique/Projetos/Atividades da Vetorial/Vetorial - Evo CRM Agentes/entregas/I4-interface.md` and `I4-validacao.json`. No merge, deployment, production access or paid inference is included.
+
+## I7 visual corrections
+
+I5 mandatory findings I1/I2/I5/I8/I11/I12/I13/I14/I22/I23 are implemented. Mobile catalog filters use the existing header button and a sheet; notices share semantic warning/error styling and explicit retries. KPI icons and loading tiles reflect the metric content. Activation requires the exact challenge phrase plus checkbox, uses a danger confirmation, and places Cancel first on mobile. Conversation dots reflect the displayed state and configuration-off disables both controls. Test retries preserve the failed action and intent key. Small polish includes I15/I17/I21/I24/I25; remaining polish is listed in the canonical I4 delivery's I7-frontend section.
+
+Regression coverage adds sheet access, mobile action order, confirmation gating, semantic conversation states, off controls, skeleton structure and idempotent test retries. Captures additionally include `lista-filtros-390-{light,dark}.png` and `confirmar-todos-habilitado-{1440,390}-{light,dark}.png`. All browser tests use the existing synthetic adapter, with no paid inference.

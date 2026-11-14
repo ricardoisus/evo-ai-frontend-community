@@ -30,6 +30,14 @@ for (const width of [1440, 390])
       await expect(page.getByRole('link', { name: /Ricardo IA/ })).toBeVisible();
       await expect(page.getByRole('link', { name: /Analista do pipeline/ })).toBeVisible();
       await shot('lista');
+      if (width === 390) {
+        await expect(page.getByLabel('Origem do agente')).toBeHidden();
+        await page.getByRole('button', { name: 'Filtros', exact: true }).click();
+        await expect(page.getByRole('dialog')).toBeVisible();
+        await expect(page.getByLabel('Origem do agente').last()).toBeVisible();
+        await shot('lista-filtros');
+        await page.getByRole('button', { name: 'Concluir', exact: true }).click();
+      }
       await page.getByRole('link', { name: /Ricardo IA/ }).click();
       await expect(page.getByRole('heading', { name: 'Ricardo IA', exact: true })).toBeVisible();
       await expect(page.getByText('2.400 / 4.100 ms')).toHaveCount(0);
@@ -74,6 +82,18 @@ for (const width of [1440, 390])
       await expect(page.getByRole('dialog')).toBeVisible();
       await expect(page.getByRole('button', { name: 'Confirmar ativação' })).toBeDisabled();
       await shot('confirmar-todos');
+      await page.getByLabel('Digite ATIVAR PARA TODOS').fill('ATIVAR PARA TODOS');
+      await expect(page.getByRole('button', { name: 'Confirmar ativação' })).toBeDisabled();
+      await page.getByRole('checkbox').check();
+      const confirmButton = page.getByRole('button', { name: 'Confirmar ativação' });
+      await expect(confirmButton).toBeEnabled();
+      await expect(confirmButton).toHaveClass(/va-danger-button/);
+      if (width === 390) {
+        const cancel = await page.getByRole('button', { name: 'Cancelar', exact: true }).boundingBox();
+        const confirm = await confirmButton.boundingBox();
+        expect(cancel!.y).toBeLessThan(confirm!.y);
+      }
+      await shot('confirmar-todos-habilitado');
       await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
       expect(state.calls.filter(x => x.path.endsWith('/activation'))).toHaveLength(0);
       await shot('caixas-ativacao');

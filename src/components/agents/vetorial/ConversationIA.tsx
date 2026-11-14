@@ -87,12 +87,25 @@ export function ConversationIA({
   return (
     <aside className="va-conversation" aria-label="Controle interno da IA">
       <div className="va-row va-between">
-        <Status value={error ? 'unavailable' : state?.health || 'unavailable'} label={label} />
+        <Status
+          value={
+            error || !state
+              ? 'unavailable'
+              : state.mode === 'off' || !state.eligible
+                ? 'inactive'
+                : state.paused
+                  ? 'paused'
+                  : state.health !== 'healthy'
+                    ? 'unavailable'
+                    : 'attending'
+          }
+          label={label}
+        />
         {editable && state && (
           <div className="va-row">
             <Button
               variant="outline"
-              disabled={busy || state.paused}
+              disabled={busy || !!error || state.paused || state.mode === 'off' || !state.eligible}
               onClick={() => control('pause')}
             >
               Pausar IA
@@ -123,7 +136,7 @@ export function ConversationIA({
         <p role="alert">
           {error}{' '}
           <Button variant="outline" onClick={() => setRetry(x => x + 1)}>
-            Atualizar
+            Verificar status da IA
           </Button>
         </p>
       )}
@@ -137,10 +150,10 @@ export function ConversationIA({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirm(false)}>
+            <Button variant="ghost" onClick={() => setConfirm(false)}>
               Cancelar
             </Button>
-            <Button variant="outline" disabled={busy} onClick={() => control('resume', true)}>
+            <Button disabled={busy} onClick={() => control('resume', true)}>
               Remover responsável e devolver
             </Button>
           </DialogFooter>

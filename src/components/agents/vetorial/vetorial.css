@@ -399,3 +399,101 @@ body.authenticated-panel-density :is(.va-managed, .va-conversation, .va-dialog) 
 .va-dialog label {
   font-size: 14px;
 }
+
+.va-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  border-left: 3px solid var(--warning-text);
+  background: color-mix(in srgb, var(--warning-text) 8%, transparent);
+  color: var(--warning-text);
+  font-size: 14px;
+  line-height: 20px;
+}
+.va-banner > svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+.va-banner > span {
+  flex: 1;
+}
+.va-banner-danger {
+  border-color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger-text) 8%, transparent);
+  color: var(--danger-text);
+}
+.va-dialog .va-danger-button {
+  background: var(--danger-text);
+  color: white;
+}
+.va-dialog button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.va-confirm-actions {
+  flex-direction: column;
+}
+.va-status[data-state='attending'] i {
+  background: var(--success-text);
+}
+.va-status[data-state='paused'] i {
+  background: var(--warning-text);
+}
+.va-status[data-state='inactive'] i {
+  background: var(--muted-foreground);
+}
+.va-skeleton-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.va-skeleton .va-skeleton-kpis span {
+  width: 100%;
+  height: 72px;
+  margin: 0;
+}
+.va-skeleton-table > div {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.va-skeleton .va-skeleton-table span {
+  width: 100%;
+  margin: 0;
+}
+@media (min-width: 641px) {
+  .va-confirm-actions {
+    flex-direction: row;
+  }
+}
+@media (max-width: 640px) {
+  .va-desktop-filters {
+    display: none;
+  }
+  .va-filter-sheet [aria-label='Filtros de agentes gerenciados'] {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px 0;
+  }
+  .va-skeleton-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+.va-filter-sheet {
+  padding: 24px 16px;
+}
+.va-filter-sheet label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.va-filter-sheet select {
+  width: 100%;
+}
