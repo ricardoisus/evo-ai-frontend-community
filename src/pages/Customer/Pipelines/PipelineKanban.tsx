@@ -63,6 +63,7 @@ import ConfiguredDealCard from './ConfiguredDealCard';
 import CardConfigurationPanel from './CardConfigurationPanel';
 import PipelineBoardLoading from './PipelineBoardLoading';
 import { rememberStageCount } from './pipelineStageCount';
+import { canStartKanbanPan, getShiftWheelHorizontalDelta } from './kanbanPan';
 import { configurationFor, nativeFields, stageTotal } from './cardConfiguration';
 import { invalidateDeal, prefetchDeal } from './deal/dealCache';
 import { isDealTab, type DealTabId } from './deal/dealContext';
@@ -289,6 +290,20 @@ export default function PipelineKanban() {
       sessionStorage.removeItem(`pipeline-scroll:${pipelineId}`);
     }
   }, [loading, pipelineId]);
+
+  useEffect(() => {
+    const board = boardScrollRef.current;
+    if (!board) return;
+    const onWheel = (event: WheelEvent) => {
+      if (board.scrollWidth <= board.clientWidth) return;
+      const delta = getShiftWheelHorizontalDelta(event, board.clientWidth);
+      if (!delta) return;
+      event.preventDefault();
+      board.scrollLeft += delta;
+    };
+    board.addEventListener('wheel', onWheel, { passive: false });
+    return () => board.removeEventListener('wheel', onWheel);
+  }, [loading, loadError, pipeline]);
 
   // Handle pipeline change
   const handlePipelineChange = (newPipelineId: string) => {
@@ -1258,18 +1273,25 @@ export default function PipelineKanban() {
             aria-label="Quadro de negócios"
             className="kanban-scroll h-full overflow-x-auto overflow-y-hidden p-4 sm:p-6" data-density={density}
             onPointerDown={event => {
-              // arrastar no fundo do quadro (fora de colunas/cartões) rola na horizontal
-              const target = event.target as HTMLElement;
-              if (event.pointerType !== 'mouse' || event.button !== 0 || target.closest('.kanban-column')) return;
+              // arrastar com o mouse no fundo do quadro, cabeçalho ou áreas vazias da coluna rola na horizontal
+              if (!canStartKanbanPan(event)) return;
+              event.preventDefault();
               const board = event.currentTarget;
               const startX = event.clientX;
               const startLeft = board.scrollLeft;
               board.classList.add('is-panning');
               const move = (moveEvent: PointerEvent) => { board.scrollLeft = startLeft - (moveEvent.clientX - startX); };
-              const stop = () => { board.classList.remove('is-panning'); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); window.removeEventListener('pointercancel', stop); };
+              const stop = () => {
+                board.classList.remove('is-panning');
+                window.removeEventListener('pointermove', move);
+                window.removeEventListener('pointerup', stop);
+                window.removeEventListener('pointercancel', stop);
+                window.removeEventListener('blur', stop);
+              };
               window.addEventListener('pointermove', move);
               window.addEventListener('pointerup', stop);
               window.addEventListener('pointercancel', stop);
+              window.addEventListener('blur', stop);
             }}
             onKeyDown={event => {
               // Alt+←/→ rola o quadro uma coluna por vez (atalho de rolagem lateral)
