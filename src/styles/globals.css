@@ -592,7 +592,7 @@ body.authenticated-panel-density {
 .kanban-column { flex: 0 0 304px; width: 304px; min-width: 304px; max-width: 304px; }
 .kanban-column-surface { background: var(--surface-sunken); border-radius: 8px; }
 .kanban-column-header { min-height: 64px; }
-.kanban-dropzone { overscroll-behavior: contain; border: 2px solid transparent; border-radius: 8px; }
+.kanban-dropzone { overscroll-behavior-x: auto; overscroll-behavior-y: contain; border: 2px solid transparent; border-radius: 8px; }
 .kanban-dropzone.is-drop-target { border-color: var(--ring); background: var(--accent); }
 .deal-card-shell { background: var(--card); color: var(--foreground); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow-1); transition: border-color 150ms, background-color 150ms; }
 .deal-card-shell:hover { background: var(--card-hover); border-color: var(--border-strong); }
@@ -615,7 +615,8 @@ body.authenticated-panel-density {
 .kanban-scroll::-webkit-scrollbar-track { background: var(--surface-sunken); border-radius: 6px; }
 .kanban-scroll::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; border: 2px solid var(--surface-sunken); }
 .kanban-scroll::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
-.kanban-scroll.is-panning { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+.kanban-scroll.is-panning { cursor: grabbing; scroll-behavior: auto; user-select: none; -webkit-user-select: none; }
+.kanban-scroll.is-panning * { cursor: grabbing !important; }
 .configured-deal-card { padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 12px; line-height: 16px; color: var(--muted-foreground); }
 .configured-deal-card.compact { padding: 8px; gap: 4px; }
 .deal-field { min-width: 0; overflow-wrap: anywhere; }
