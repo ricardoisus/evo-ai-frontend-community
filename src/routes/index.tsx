@@ -42,6 +42,7 @@ import CustomTools from '@/pages/Customer/Agents/CustomTools';
 import Contacts from '@/pages/Customer/Contacts';
 import ScheduledActions from '@/pages/Customer/Contacts/ScheduledActions';
 import { Channels, ChannelSettings, NewChannel } from '@/pages/Customer/Channels';
+const WhatsappTracking = React.lazy(() => import('@/pages/Customer/Settings/WhatsappTracking/WhatsappTracking'));
 const ChatPage = React.lazy(() => import('@/pages/Customer/Chat/ChatPage'));
 
 import Automation from '../pages/Customer/Automation';
@@ -566,6 +567,7 @@ const AppRouter = () => {
             }
           /> */}
 
+          <Route path="/settings/whatsapp-tracking" element={<PrivateRoute><CustomerRoute><MainLayout><PermissionRoute resource="automation_rules" action="read"><WhatsappTracking /></PermissionRoute></MainLayout></CustomerRoute></PrivateRoute>} />
           <Route path="/settings/lead-automations" element={<PrivateRoute><CustomerRoute><MainLayout><PermissionRoute resource="automation_rules" action="read"><LeadAutomations /></PermissionRoute></MainLayout></CustomerRoute></PrivateRoute>} />
           {/* Segments (settings subroute) */}
           <Route

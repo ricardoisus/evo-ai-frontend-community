@@ -1,0 +1,98 @@
+.wa-tracking {
+  --tracking-accent: #6951cd;
+}
+.wa-tracking .ig-connection label {
+  flex: 1;
+  min-width: 0;
+}
+.wa-tracking-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border, #dce1e9);
+}
+.wa-tracking-nav [aria-current] {
+  color: var(--tracking-accent);
+  border-color: var(--tracking-accent);
+}
+.wa-tracking-section,
+.wa-tracking-feed article header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wa-tracking-section {
+  margin-bottom: 16px;
+}
+.wa-tracking h2 {
+  font-size: 20px;
+  font-weight: 650;
+}
+.wa-tracking h3 {
+  font-size: 16px;
+  font-weight: 650;
+}
+.wa-tracking-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 16px;
+}
+.wa-tracking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.wa-tracking-simulation {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border, #dce1e9);
+}
+.wa-tracking-simulation label {
+  width: min(100%, 480px);
+}
+.wa-tracking-feed {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.wa-tracking-feed article {
+  border: 1px solid var(--border, #dce1e9);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.wa-tracking-feed article p {
+  margin: 5px 0;
+}
+.wa-tracking-feed summary {
+  cursor: pointer;
+}
+.wa-tracking-feed ol {
+  padding-left: 22px;
+}
+.wa-tracking-feed article button {
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .wa-tracking {
+    padding: 20px 14px;
+  }
+  .wa-tracking-nav button {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
+
+.wa-tracking .wa-tracking-runtime {
+  padding: 10px 12px;
+  border-left: 3px solid var(--tracking-accent);
+  margin-top: 0;
+}

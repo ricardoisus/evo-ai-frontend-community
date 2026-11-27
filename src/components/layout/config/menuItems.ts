@@ -193,6 +193,7 @@ export const getCustomerMenuItems = (t: (key: string) => string, flowConfigured 
     href: '#',
     icon: Cog,
     subItems: [
+      { name: 'Tracking', href: '/settings/whatsapp-tracking', icon: Workflow, resource: 'automation_rules', action: 'read', requiredRoleKeys: ['super_admin', 'account_owner', 'administrator', 'admin'] },
       { name: t('menu.settings.leadAutomations'), href: '/settings/lead-automations', icon: Workflow, resource: 'automation_rules', action: 'read', requiredRoleKeys: ['super_admin', 'account_owner', 'administrator', 'admin'] },
       {
         name: t('menu.settings.account'),
