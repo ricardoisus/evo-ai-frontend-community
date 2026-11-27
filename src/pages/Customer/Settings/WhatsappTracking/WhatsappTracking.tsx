@@ -17,6 +17,7 @@ const triggers = { message_received: 'Mensagem recebida', message_sent: 'Envio c
 const frequencies = { occurrence: 'Por ocorrência', contact: 'Por contato', acquisition: 'Por aquisição' };
 const modes = { test: 'Teste', production: 'Produção' };
 const historyModes = { ...modes, observation: 'Observação' };
+const ruleModes = { ...modes, test: 'Observação' };
 const operators = { exact: 'É igual a', contains: 'Contém', starts_with: 'Começa com' };
 const origins = { website: 'Site', ctwa: 'Anúncio · Click to WhatsApp', chat: 'WhatsApp', organic: 'Orgânico' };
 const messageTypes = { text: 'Texto', image: 'Imagem', audio: 'Áudio', video: 'Vídeo', file: 'Arquivo', template: 'Modelo' };
@@ -243,7 +244,10 @@ function RuleEditor({ inbox, rule, destinations, permissions, onClose, onSave }:
     if (rule) void run(async () => onSave(await trackingApi.action(inbox, rule, action)));
   };
   const stageTrigger = draft.trigger === 'stage_entered';
-  const ruleReady = Boolean(rule?.draft.trigger && rule.draft.frequency && rule.draft.event_name && rule.draft.destination_id && rule.draft.mode);
+  const savedDraft = rule?.draft;
+  const ruleReady = Boolean(savedDraft?.trigger && savedDraft.frequency && savedDraft.event_name &&
+    savedDraft.destination_id && savedDraft.mode &&
+    (savedDraft.trigger !== 'stage_entered' || savedDraft.filters?.stage_id));
   return <div className="ig-card wa-tracking-card">
     <SectionHeader title={rule ? rule.name : 'Nova regra'} action={<button onClick={onClose}>Voltar</button>} />
     {error && <p role="alert" className="ig-alert">{error}</p>}
@@ -254,7 +258,7 @@ function RuleEditor({ inbox, rule, destinations, permissions, onClose, onSave }:
           trigger: event.target.value, filters: draft.filters?.origin ? { origin: draft.filters.origin } : {}, text: undefined,
         })}><Choices items={triggers} /></select></label>
         <label>Frequência<select value={draft.frequency || ''} onChange={event => change({ frequency: event.target.value })}><Choices items={frequencies} /></select></label>
-        <label>Modo<select value={draft.mode || ''} onChange={event => change({ mode: event.target.value })}><Choices items={modes} /></select></label>
+        <label>Modo<select value={draft.mode || ''} onChange={event => change({ mode: event.target.value })}><Choices items={ruleModes} /></select></label>
         <label>Evento Meta<input maxLength={50} placeholder="Lead" value={draft.event_name || ''} onChange={event => change({ event_name: event.target.value })} /></label>
         <label>Destino Meta<select value={draft.destination_id || ''} onChange={event => change({ destination_id: event.target.value })}>
           <option value="">Selecione um destino</option>{destinations.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -267,7 +271,7 @@ function RuleEditor({ inbox, rule, destinations, permissions, onClose, onSave }:
             <option value="">Selecione um pipeline</option>{pipelines.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select></label>
           <label>Etapa de destino<select value={draft.filters?.stage_id || ''} onChange={event => changeFilter('stage_id', event.target.value)}>
-            <option value="">Todas as etapas</option>{stages.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+            <option value="">Selecione uma etapa</option>{stages.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select></label>
           <label>Etapa anterior<select value={draft.filters?.from_stage_id || ''} onChange={event => changeFilter('from_stage_id', event.target.value)}>
             <option value="">Qualquer etapa anterior</option>{stages.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
