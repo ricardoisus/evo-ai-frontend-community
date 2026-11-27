@@ -5,7 +5,7 @@ import { usePermissions } from '@/contexts/PermissionsContext';
 import inboxesService from '@/services/channels/inboxesService';
 import { pipelinesService } from '@/services/pipelines/pipelinesService';
 import { extractError } from '@/utils/apiHelpers';
-import { trackingApi, type Delivery, type Destination, type Draft, type Rule } from './trackingApi';
+import { trackingApi, type Delivery, type Destination, type Draft, type Rule, type RuntimeMode } from './trackingApi';
 import '@/components/instagram-amh/automation.css';
 import './tracking.css';
 
@@ -23,7 +23,12 @@ const messageTypes = { text: 'Texto', image: 'Imagem', audio: 'Áudio', video: '
 const statuses: Record<string, string> = {
   pending: 'Pendente', sending: 'Em envio', accepted: 'Aceita', retryable: 'Aguardando retentativa',
   uncertain: 'Entrega incerta', rejected: 'Rejeitada', expired: 'Expirada', exhausted: 'Tentativas esgotadas',
-  configuration_error: 'Erro de configuração', observed: 'Em observação',
+  configuration_error: 'Erro de configuração', observed: 'Em observação', cancelled: 'Cancelada',
+};
+const runtimeLabels: Record<RuntimeMode, string> = {
+  disabled: 'Captura desativada nesta caixa.',
+  observation: 'Captura em observação. As correspondências ficam no Histórico.',
+  production: 'Produção ativa para esta caixa.',
 };
 const results: Record<string, string> = {
   matched: 'O evento corresponde à regra.', missing_trigger: 'Selecione um gatilho para simular.',
@@ -91,6 +96,7 @@ function TrackingScreen({ permissions }: { permissions: Permissions }) {
 function InboxTracking({ inbox, permissions }: { inbox: string; permissions: Permissions }) {
   const [tab, setTab] = useState<Tab>('Visão geral');
   const [rules, setRules] = useState<Rule[]>([]);
+  const [runtime, setRuntime] = useState<RuntimeMode>('disabled');
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [rule, setRule] = useState<Rule | 'new'>();
   const [destination, setDestination] = useState<Destination | 'new'>();
@@ -103,7 +109,8 @@ function InboxTracking({ inbox, permissions }: { inbox: string; permissions: Per
     setError('');
     void Promise.all([trackingApi.rules(inbox), trackingApi.destinations(inbox)]).then(([rules, destinations]) => {
       if (!live) return;
-      setRules(rules);
+      setRules(rules.data);
+      setRuntime(rules.meta.runtime_mode);
       setDestinations(destinations);
     }).catch(error => { if (live) setError(errorText(error)); })
       .finally(() => { if (live) setLoading(false); });
@@ -123,6 +130,7 @@ function InboxTracking({ inbox, permissions }: { inbox: string; permissions: Per
       </button>)}
     </nav>
     {error && <p role="alert" className="ig-alert">{error}</p>}
+    {!loading && !error && <p className="wa-tracking-runtime">{runtimeLabels[runtime]}</p>}
     {loading && <p role="status">Carregando Tracking…</p>}
     {tab === 'Visão geral' && !loading && !error && <>
       <div className="ig-metrics">

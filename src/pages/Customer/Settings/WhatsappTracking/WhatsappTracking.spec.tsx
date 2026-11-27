@@ -32,7 +32,7 @@ async function selectInbox() {
 }
 
 beforeEach(() => {
-  vi.mocked(trackingApi.rules).mockResolvedValue([existing]);
+  vi.mocked(trackingApi.rules).mockResolvedValue({ data: [existing], meta: { runtime_mode: 'observation' } });
   vi.mocked(trackingApi.destinations).mockResolvedValue([]);
   vi.mocked(trackingApi.history).mockResolvedValue({ data: [], meta: { page: 1, per_page: 25, total_count: 0 } });
 });

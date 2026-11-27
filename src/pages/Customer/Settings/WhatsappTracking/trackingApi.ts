@@ -11,6 +11,9 @@ export type Draft = Partial<{
   text: { operator: string; value: string };
 }>;
 export type Rule = { id: string; name: string; draft: Draft; published: Draft | null; active: boolean; lock_version: number };
+export type RuntimeMode = 'disabled' | 'observation' | 'production';
+type RuleList = { data: Rule[]; meta: { runtime_mode: RuntimeMode } };
+
 export type Destination = { id: string; name: string; dataset_id: string; credential_configured: boolean };
 export type Delivery = {
   id: string; event_id: string; event_name: string; dataset_id: string; mode: string; status: string;
@@ -22,7 +25,7 @@ type History = { data: Delivery[]; meta: { page: number; per_page: number; total
 const root = (inbox: string) => `/whatsapp_tracking/${inbox}`;
 
 export const trackingApi = {
-  rules: async (inbox: string) => extractData<Rule[]>(await api.get(`${root(inbox)}/rules`)),
+  rules: async (inbox: string) => (await api.get<RuleList>(`${root(inbox)}/rules`)).data,
   destinations: async (inbox: string) => extractData<Destination[]>(await api.get(`${root(inbox)}/destinations`)),
   saveRule: async (inbox: string, input: { name: string; draft: Draft }, rule?: Rule) =>
     extractData<Rule>(rule

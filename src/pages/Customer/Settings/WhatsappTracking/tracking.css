@@ -90,3 +90,9 @@
     flex: 1 1 calc(50% - 8px);
   }
 }
+
+.wa-tracking .wa-tracking-runtime {
+  padding: 10px 12px;
+  border-left: 3px solid var(--tracking-accent);
+  margin-top: 0;
+}
